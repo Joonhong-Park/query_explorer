@@ -149,6 +149,16 @@
       <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
     </div>
     <div class="fg">
+      <label>Query Type</label>
+      <select id="f-qtype">
+        <option value="QUERY" selected>QUERY</option>
+        <option value="">전체</option>
+        <option value="SET">SET</option>
+        <option value="DDL">DDL</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+    <div class="fg">
       <label>상태</label>
       <div class="state-checks">
         <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
@@ -319,8 +329,9 @@ async function search() {
   const v = id => document.getElementById(id).value.trim();
   const params = new URLSearchParams();
 
-  if (v('f-user'))    params.set('user',    v('f-user'));
-  if (v('f-keyword')) params.set('keyword', v('f-keyword'));
+  if (v('f-user'))    params.set('user',       v('f-user'));
+  if (v('f-keyword')) params.set('keyword',    v('f-keyword'));
+  if (v('f-qtype'))   params.set('query_type', v('f-qtype'));
 
   const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
   const allStates     = [...document.querySelectorAll('.f-state')].map(c => c.value);
@@ -357,6 +368,7 @@ async function search() {
 
 function reset() {
   ['f-user','f-keyword','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-qtype').value = 'QUERY';
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
   document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));

@@ -17,6 +17,7 @@ def build_filter(
     user: Optional[str] = None,
     keyword: Optional[str] = None,
     query_state: Optional[str] = None,  # 쉼표 구분 다중 상태 가능 (예: "FINISHED,EXCEPTION")
+    query_type: Optional[str] = None,   # QUERY / SET / DDL / N/A
 ) -> str:
     """
     CM impalaQueries filter 표현식 조립.
@@ -27,6 +28,8 @@ def build_filter(
     """
     parts = []
 
+    if query_type:
+        parts.append(f'queryType = "{query_type}"')
     if user:
         parts.append(f'user = "{user}"')
     if keyword:

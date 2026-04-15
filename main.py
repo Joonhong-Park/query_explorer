@@ -38,13 +38,14 @@ async def get_queries(
     user:        Optional[str] = Query(None),
     keyword:     Optional[str] = Query(None),
     query_state: Optional[str] = Query(None),
+    query_type:  Optional[str] = Query(None),
     hours:       Optional[int] = Query(None),
     from_time:   Optional[str] = Query(None),
     to_time:     Optional[str] = Query(None),
     limit:       int           = Query(100, ge=1, le=1000),
     clusters:    Optional[str] = Query(None),  # 쉼표 구분 cluster ID
 ):
-    filter_str       = build_filter(user, keyword, query_state)
+    filter_str       = build_filter(user, keyword, query_state, query_type)
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
 
     params = {"limit": limit}

@@ -82,13 +82,16 @@
   tbody tr.data-row:hover { background: #1c2035; }
   tbody td { padding: 6px 12px; vertical-align: middle; }
 
-  .c-toggle  { width: 32px; text-align: center; padding: 0 4px !important; }
-  .c-cluster { color: #7eb8f7; font-weight: 500; }
-  .c-qid     { font-family: monospace; font-size: 11px; color: #666; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .c-user    { color: #ce93d8; }
-  .c-dur     { text-align: right; white-space: nowrap; }
-  .c-time    { white-space: nowrap; color: #888; }
-  .c-qstatus { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-toggle    { width: 32px; text-align: center; padding: 0 4px !important; }
+  .c-cluster   { color: #7eb8f7; font-weight: 500; white-space: nowrap; }
+  .c-qid       { font-family: monospace; font-size: 11px; color: #666; white-space: nowrap; }
+  .c-user      { color: #ce93d8; white-space: nowrap; }
+  .c-conn-user { color: #b0bec5; font-size: 12px; white-space: nowrap; }
+  .c-dur       { text-align: right; white-space: nowrap; }
+  .c-rows      { text-align: right; white-space: nowrap; color: #888; font-size: 12px; }
+  .c-time      { white-space: nowrap; color: #888; }
+  .c-qstatus   { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-attr-qs   { font-family: monospace; font-size: 11px; color: #ef9a9a; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .c-stmt { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stmt-text {
@@ -217,16 +220,19 @@ let _activeCluster = '';
 let _openRows      = new Set(); // 펼쳐진 행의 queryId
 
 const COLS = [
-  { key: '_toggle',        label: '',           cls: 'c-toggle',  sort: false },
-  { key: '_cluster',       label: '클러스터',   cls: 'c-cluster', sort: true  },
-  { key: 'queryId',        label: 'Query ID',   cls: 'c-qid',     sort: false },
-  { key: 'user',           label: '사용자',     cls: 'c-user',    sort: true  },
-  { key: 'queryState',     label: '상태',       cls: '',          sort: true  },
-  { key: 'statement',      label: 'Statement',  cls: 'c-stmt',    sort: false },
-  { key: 'durationMillis', label: '실행시간',   cls: 'c-dur',     sort: true  },
-  { key: 'startTime',      label: '시작시간',   cls: 'c-time',    sort: true  },
-  { key: 'endTime',        label: '종료시간',   cls: 'c-time',    sort: true  },
-  { key: 'queryStatus',    label: 'queryStatus',cls: 'c-qstatus', sort: false },
+  { key: '_toggle',          label: '',              cls: 'c-toggle',    sort: false },
+  { key: '_cluster',         label: '클러스터',      cls: 'c-cluster',   sort: true  },
+  { key: 'queryId',          label: 'Query ID',      cls: 'c-qid',       sort: false },
+  { key: 'user',             label: '사용자',        cls: 'c-user',      sort: true  },
+  { key: '_connected_user',  label: 'Connected User',cls: 'c-conn-user', sort: false },
+  { key: 'queryState',       label: '상태',          cls: '',            sort: true  },
+  { key: 'statement',        label: 'Statement',     cls: 'c-stmt',      sort: false },
+  { key: 'durationMillis',   label: '실행시간',      cls: 'c-dur',       sort: true  },
+  { key: 'rowsProduced',     label: 'Rows',          cls: 'c-rows',      sort: true  },
+  { key: 'startTime',        label: '시작시간',      cls: 'c-time',      sort: true  },
+  { key: 'endTime',          label: '종료시간',      cls: 'c-time',      sort: true  },
+  { key: 'queryStatus',      label: 'queryStatus',   cls: 'c-qstatus',   sort: false },
+  { key: '_attr_query_status', label: 'attr.query_status', cls: 'c-attr-qs', sort: false },
 ];
 
 window.onload = () => {
@@ -385,8 +391,10 @@ function renderTable(rows) {
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt    = q.statement   ?? '';
-    const errMsg  = q.queryStatus ?? '';
+    const stmt          = q.statement               ?? '';
+    const errMsg        = q.queryStatus             ?? '';
+    const connUser      = q.attributes?.connected_user  ?? '';
+    const attrQStatus   = q.attributes?.query_status    ?? '';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -394,18 +402,28 @@ function renderTable(rows) {
         return `<td class="c-toggle">
           <button class="toggle-btn" id="tbtn-${i}" onclick="toggleDetail(${i})" title="펼치기">▶</button>
         </td>`;
+      if (c.key === '_connected_user')
+        return `<td class="c-conn-user">${esc(connUser)}</td>`;
+      if (c.key === '_attr_query_status') {
+        const v = esc(attrQStatus);
+        return `<td class="c-attr-qs" title="${v}">${v}</td>`;
+      }
       if (c.key === 'queryState')
         return `<td><span class="s s-${val}">${val}</span></td>`;
       if (c.key === 'durationMillis')
         return `<td class="c-dur">${fmtDur(val)}</td>`;
+      if (c.key === 'rowsProduced')
+        return `<td class="c-rows">${val !== '' ? Number(val).toLocaleString() : '-'}</td>`;
       if (c.key === 'startTime' || c.key === 'endTime')
         return `<td class="c-time">${fmtTime(val)}</td>`;
       if (c.key === 'statement')
         return `<td class="c-stmt">
           <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
         </td>`;
-      if (c.key === 'queryStatus')
-        return `<td class="c-qstatus" title="${esc(String(val))}">${esc(String(val))}</td>`;
+      if (c.key === 'queryStatus') {
+        const v = esc(String(val));
+        return `<td class="c-qstatus" title="${v}">${v}</td>`;
+      }
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
@@ -413,7 +431,8 @@ function renderTable(rows) {
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>
-          ${errMsg ? `<div class="err-block">${esc(errMsg)}</div>` : ''}
+          ${errMsg      ? `<div class="err-block">${esc(errMsg)}</div>`      : ''}
+          ${attrQStatus ? `<div class="err-block">${esc(attrQStatus)}</div>` : ''}
         </div>
       </td>
     </tr>`;

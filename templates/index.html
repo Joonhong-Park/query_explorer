@@ -7,65 +7,87 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; font-size: 13px; }
 
-  header {
-    background: #1a1d2e; border-bottom: 1px solid #2a2d3e;
-    padding: 12px 20px;
-  }
-  header h1 { font-size: 16px; color: #7eb8f7; }
+  header { background: #1a1d2e; border-bottom: 1px solid #2a2d3e; padding: 10px 20px; }
+  header h1 { font-size: 15px; color: #7eb8f7; }
 
-  /* 필터 영역 */
+  /* ── 필터 패널 ── */
   .filters {
     background: #13161f; border-bottom: 1px solid #2a2d3e;
-    padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
   }
-  .fg { display: flex; flex-direction: column; gap: 4px; }
-  .fg label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
-  .fg input, .fg select {
+  .fg { display: flex; flex-direction: column; gap: 3px; }
+  .fg label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+  .fg input[type="text"],
+  .fg input[type="datetime-local"],
+  .fg select {
     background: #1e2130; border: 1px solid #2e3148; color: #e0e0e0;
-    padding: 5px 9px; border-radius: 4px; font-size: 13px;
+    padding: 5px 8px; border-radius: 4px; font-size: 12px; height: 30px;
   }
+  .fg input[type="text"] { min-width: 150px; }
+  .fg input[type="datetime-local"] { min-width: 172px; color-scheme: dark; }
   .fg input:focus, .fg select:focus { outline: none; border-color: #5b7fe0; }
-  .fg.wide input { min-width: 180px; }
 
-  #custom-time { display: none; }
-
-  .btn {
-    padding: 6px 18px; border: none; border-radius: 4px;
-    cursor: pointer; font-size: 13px; font-weight: 600;
+  /* 프리셋 버튼 */
+  .presets { display: flex; gap: 4px; }
+  .preset-btn {
+    padding: 4px 8px; border: 1px solid #2e3148; border-radius: 4px;
+    background: #1e2130; color: #aaa; font-size: 11px; cursor: pointer;
   }
-  .btn-primary { background: #3d5afe; color: #fff; }
+  .preset-btn:hover, .preset-btn.active { background: #3d5afe; color: #fff; border-color: #3d5afe; }
+
+  /* 클러스터 체크박스 */
+  .cluster-checks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
+  .cluster-checks label {
+    display: flex; align-items: center; gap: 4px;
+    color: #aaa; font-size: 12px; cursor: pointer;
+  }
+  .cluster-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
+
+  /* 상태 체크박스 */
+  .state-checks { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
+  .state-checks label { display: flex; align-items: center; gap: 3px; font-size: 12px; cursor: pointer; }
+  .state-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
+
+  /* 액션 버튼 */
+  .btn { padding: 5px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; height: 30px; }
+  .btn-primary   { background: #3d5afe; color: #fff; }
   .btn-primary:hover { background: #536dfe; }
   .btn-secondary { background: #2a2d3e; color: #aaa; }
   .btn-secondary:hover { background: #363a52; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
 
-  /* 상태 바 */
+  /* ── 상태 바 ── */
   .status-bar {
     background: #0d0f16; border-bottom: 1px solid #1e2130;
-    padding: 6px 20px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 32px;
+    padding: 5px 20px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 30px;
   }
-  .cluster-badge { padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .cl-badge { padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .badge-ok  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
   .badge-err { background: #b71c1c66; color: #ef9a9a; border: 1px solid #c62828; }
-  .summary   { margin-left: auto; font-size: 11px; color: #888; }
+  .summary    { margin-left: auto; font-size: 11px; color: #888; }
   .filter-tag { font-family: monospace; font-size: 11px; color: #ffa726; }
 
-  /* 테이블 */
-  .table-wrap { overflow: auto; height: calc(100vh - 200px); }
+  /* ── 테이블 ── */
+  .table-wrap { overflow: auto; height: calc(100vh - 210px); }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: #13161f; color: #888; text-align: left;
-    padding: 8px 12px; border-bottom: 2px solid #2a2d3e;
+    padding: 7px 12px; border-bottom: 2px solid #2a2d3e;
     position: sticky; top: 0; white-space: nowrap;
+    cursor: pointer; user-select: none;
   }
+  thead th:hover { color: #bbb; }
+  .sort-asc::after  { content: ' ▲'; font-size: 10px; }
+  .sort-desc::after { content: ' ▼'; font-size: 10px; }
+
   tbody tr { border-bottom: 1px solid #1a1d2e; }
   tbody tr:hover { background: #1a1d2e; }
-  tbody td { padding: 7px 12px; }
+  tbody td { padding: 6px 12px; }
 
   .c-cluster { color: #7eb8f7; font-weight: 500; }
   .c-user    { color: #ce93d8; }
   .c-db      { color: #80cbc4; }
-  .c-stmt    { max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #ccc; }
+  .c-stmt    { max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #ccc; }
   .c-dur     { text-align: right; white-space: nowrap; }
   .c-time    { white-space: nowrap; color: #888; }
 
@@ -84,49 +106,59 @@
 <header><h1>⚡ Query Explorer</h1></header>
 
 <div class="filters">
-  <div class="fg wide">
+
+  <!-- 사용자 -->
+  <div class="fg">
     <label>User</label>
     <input id="f-user" type="text" placeholder="username">
   </div>
-  <div class="fg wide">
-    <label>Table</label>
-    <input id="f-table" type="text" placeholder="table_name">
+
+  <!-- 키워드 (statement 검색) -->
+  <div class="fg">
+    <label>Keyword (table, SQL 등)</label>
+    <input id="f-keyword" type="text" placeholder="테이블명, SQL 키워드 등">
   </div>
-  <div class="fg wide">
+
+  <!-- 데이터베이스 -->
+  <div class="fg">
     <label>Database</label>
     <input id="f-database" type="text" placeholder="db_name">
   </div>
+
+  <!-- 상태 -->
   <div class="fg">
     <label>상태</label>
-    <select id="f-state">
-      <option value="">전체</option>
-      <option value="FINISHED">FINISHED</option>
-      <option value="EXCEPTION">EXCEPTION</option>
-      <option value="RUNNING">RUNNING</option>
-      <option value="QUEUED">QUEUED</option>
-    </select>
+    <div class="state-checks">
+      <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
+      <label><input type="checkbox" class="f-state" value="RUNNING"   checked> <span class="s s-RUNNING">RUNNING</span></label>
+      <label><input type="checkbox" class="f-state" value="EXCEPTION" checked> <span class="s s-EXCEPTION">EXCEPTION</span></label>
+      <label><input type="checkbox" class="f-state" value="QUEUED"    checked> <span class="s s-QUEUED">QUEUED</span></label>
+    </div>
+  </div>
+
+  <!-- 시간 범위 프리셋 -->
+  <div class="fg">
+    <label>빠른 범위</label>
+    <div class="presets">
+      <button class="preset-btn" onclick="setPreset(1)">1h</button>
+      <button class="preset-btn" onclick="setPreset(6)">6h</button>
+      <button class="preset-btn active" onclick="setPreset(24)">24h</button>
+      <button class="preset-btn" onclick="setPreset(72)">3d</button>
+      <button class="preset-btn" onclick="setPreset(168)">7d</button>
+    </div>
+  </div>
+
+  <!-- 시작/종료 시각 (캘린더) -->
+  <div class="fg">
+    <label>시작 일시</label>
+    <input id="f-from" type="datetime-local">
   </div>
   <div class="fg">
-    <label>조회 범위</label>
-    <select id="f-hours" onchange="toggleCustomTime()">
-      <option value="1">최근 1시간</option>
-      <option value="6">최근 6시간</option>
-      <option value="24" selected>최근 24시간</option>
-      <option value="72">최근 3일</option>
-      <option value="168">최근 7일</option>
-      <option value="custom">직접 입력</option>
-    </select>
+    <label>종료 일시</label>
+    <input id="f-to" type="datetime-local">
   </div>
-  <div id="custom-time" style="display:flex; gap:8px;">
-    <div class="fg">
-      <label>시작</label>
-      <input id="f-from" type="datetime-local">
-    </div>
-    <div class="fg">
-      <label>종료</label>
-      <input id="f-to" type="datetime-local">
-    </div>
-  </div>
+
+  <!-- 결과 수 -->
   <div class="fg">
     <label>결과 수</label>
     <select id="f-limit">
@@ -136,13 +168,24 @@
       <option value="500">500건</option>
     </select>
   </div>
+
+  <!-- 검색/초기화 버튼 -->
   <div class="fg" style="justify-content:flex-end">
     <label>&nbsp;</label>
-    <div style="display:flex; gap:6px;">
+    <div style="display:flex;gap:6px;">
       <button class="btn btn-primary"   id="btn-search" onclick="search()">검색</button>
       <button class="btn btn-secondary" onclick="reset()">초기화</button>
     </div>
   </div>
+
+  <!-- 클러스터 선택 (전체 너비) -->
+  <div class="fg" style="width:100%">
+    <label>클러스터</label>
+    <div class="cluster-checks" id="cluster-checks">
+      <span style="color:#555">로딩 중...</span>
+    </div>
+  </div>
+
 </div>
 
 <div class="status-bar" id="status-bar">
@@ -154,38 +197,109 @@
 </div>
 
 <script>
-function toggleCustomTime() {
-  const custom = document.getElementById('f-hours').value === 'custom';
-  document.getElementById('custom-time').style.display = custom ? 'flex' : 'none';
+// ── 상태 ──────────────────────────────────────────────────────────────────────
+let _rows    = [];
+let _sortCol = 'startTime';
+let _sortDir = -1;  // -1: 내림차순, 1: 오름차순
+
+const COLS = [
+  { key: '_cluster',      label: '클러스터',  cls: 'c-cluster' },
+  { key: 'user',          label: '사용자',    cls: 'c-user'    },
+  { key: 'database',      label: 'DB',        cls: 'c-db'      },
+  { key: 'queryState',    label: '상태',      cls: ''          },
+  { key: 'statement',     label: 'Statement', cls: 'c-stmt'    },
+  { key: 'durationMillis',label: '실행시간',  cls: 'c-dur'     },
+  { key: 'startTime',     label: '시작시간',  cls: 'c-time'    },
+];
+
+// ── 초기화 ────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  setPreset(24);
+  loadClusters();
+};
+
+async function loadClusters() {
+  try {
+    const res  = await fetch('/api/clusters');
+    const data = await res.json();
+    const box  = document.getElementById('cluster-checks');
+    box.innerHTML = '';
+
+    // 전체 선택/해제 토글
+    const allLabel = document.createElement('label');
+    allLabel.innerHTML = `<input type="checkbox" id="chk-all" checked onchange="toggleAllClusters(this.checked)"> 전체`;
+    box.appendChild(allLabel);
+
+    data.clusters.forEach(c => {
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" class="chk-cluster" value="${c}" checked> ${c}`;
+      box.appendChild(label);
+    });
+  } catch(e) {
+    document.getElementById('cluster-checks').innerHTML = '<span style="color:#ef5350">클러스터 목록 로드 실패</span>';
+  }
 }
 
+function toggleAllClusters(checked) {
+  document.querySelectorAll('.chk-cluster').forEach(chk => chk.checked = checked);
+}
+
+// ── 프리셋 ────────────────────────────────────────────────────────────────────
+function setPreset(hours) {
+  const now  = new Date();
+  const from = new Date(now - hours * 3600000);
+  document.getElementById('f-from').value = toLocalDT(from);
+  document.getElementById('f-to').value   = toLocalDT(now);
+
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function toLocalDT(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ── 검색 ─────────────────────────────────────────────────────────────────────
 async function search() {
   const btn = document.getElementById('btn-search');
   btn.disabled = true;
   btn.textContent = '조회 중...';
   document.getElementById('table-wrap').innerHTML = '<div class="loading">⏳ 클러스터 조회 중...</div>';
 
-  const params = new URLSearchParams();
   const v = id => document.getElementById(id).value.trim();
+  const params = new URLSearchParams();
 
-  if (v('f-user'))     params.set('user',       v('f-user'));
-  if (v('f-table'))    params.set('table',       v('f-table'));
-  if (v('f-database')) params.set('database',    v('f-database'));
-  if (v('f-state'))    params.set('query_state', v('f-state'));
+  if (v('f-user'))     params.set('user',     v('f-user'));
+  if (v('f-keyword'))  params.set('keyword',  v('f-keyword'));
+  if (v('f-database')) params.set('database', v('f-database'));
+
+  // 상태 — 체크된 것만 (전체 체크면 파라미터 생략)
+  const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
+  const allStates     = [...document.querySelectorAll('.f-state')].map(c => c.value);
+  if (checkedStates.length > 0 && checkedStates.length < allStates.length) {
+    params.set('query_state', checkedStates.join(','));
+  }
+
+  // 시간
+  if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
+  if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
+
   params.set('limit', v('f-limit') || '100');
 
-  if (v('f-hours') === 'custom') {
-    if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
-    if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
-  } else {
-    params.set('hours', v('f-hours'));
+  // 클러스터
+  const checkedClusters = [...document.querySelectorAll('.chk-cluster:checked')].map(c => c.value);
+  const allClusters     = [...document.querySelectorAll('.chk-cluster')].map(c => c.value);
+  if (checkedClusters.length > 0 && checkedClusters.length < allClusters.length) {
+    params.set('clusters', checkedClusters.join(','));
   }
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
+    _rows = data.queries || [];
     renderStatus(data);
-    renderTable(data.queries || []);
+    renderTable(_rows);
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   } finally {
@@ -195,20 +309,37 @@ async function search() {
 }
 
 function reset() {
-  ['f-user','f-table','f-database','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-state').value = '';
-  document.getElementById('f-hours').value = '24';
-  document.getElementById('f-limit').value = '100';
-  document.getElementById('custom-time').style.display = 'none';
+  ['f-user','f-keyword','f-database'].forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('.f-state').forEach(c => c.checked = true);
+  document.querySelectorAll('.chk-cluster').forEach(c => c.checked = true);
+  const chkAll = document.getElementById('chk-all');
+  if (chkAll) chkAll.checked = true;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  setPreset(24);
   document.getElementById('status-bar').innerHTML = '<span style="color:#555">검색 조건을 입력하고 검색하세요</span>';
   document.getElementById('table-wrap').innerHTML  = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
+  _rows = [];
 }
 
+// ── 정렬 ─────────────────────────────────────────────────────────────────────
+function sortBy(col) {
+  if (_sortCol === col) _sortDir *= -1;
+  else { _sortCol = col; _sortDir = -1; }
+
+  _rows.sort((a, b) => {
+    const va = a[col] ?? '', vb = b[col] ?? '';
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * _sortDir;
+    return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
+  });
+  renderTable(_rows);
+}
+
+// ── 렌더링 ────────────────────────────────────────────────────────────────────
 function renderStatus(data) {
   const badges = (data.cluster_results || []).map(c => {
     const cls = c.error ? 'badge-err' : 'badge-ok';
     const tip = c.error ? c.error : `${c.count}건`;
-    return `<span class="cluster-badge ${cls}">${c.cluster} (${tip})</span>`;
+    return `<span class="cl-badge ${cls}">${c.cluster} (${tip})</span>`;
   }).join('');
   const tag = data.filter_applied
     ? `<span class="filter-tag">filter: ${data.filter_applied}</span>` : '';
@@ -221,27 +352,31 @@ function renderTable(rows) {
     document.getElementById('table-wrap').innerHTML = '<div class="empty">결과가 없습니다</div>';
     return;
   }
-  const thead = `<thead><tr>
-    <th>클러스터</th><th>사용자</th><th>DB</th><th>상태</th>
-    <th>Statement</th><th>실행시간</th><th>시작시간</th>
-  </tr></thead>`;
 
-  const tbody = rows.map(q => `<tr>
-    <td class="c-cluster">${q._cluster ?? ''}</td>
-    <td class="c-user">${q.user ?? ''}</td>
-    <td class="c-db">${q.database ?? ''}</td>
-    <td><span class="s s-${q.queryState}">${q.queryState ?? ''}</span></td>
-    <td class="c-stmt" title="${esc(q.statement ?? '')}">${esc(q.statement ?? '')}</td>
-    <td class="c-dur">${fmtDur(q.durationMillis)}</td>
-    <td class="c-time">${fmtTime(q.startTime)}</td>
-  </tr>`).join('');
+  const thead = '<thead><tr>' + COLS.map(c => {
+    const cls = _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+    return `<th class="${cls}" onclick="sortBy('${c.key}')">${c.label}</th>`;
+  }).join('') + '</tr></thead>';
+
+  const tbody = rows.map(q => {
+    const cells = COLS.map(c => {
+      let val = q[c.key] ?? '';
+      if (c.key === 'queryState')     return `<td><span class="s s-${val}">${val}</span></td>`;
+      if (c.key === 'durationMillis') return `<td class="c-dur">${fmtDur(val)}</td>`;
+      if (c.key === 'startTime')      return `<td class="c-time">${fmtTime(val)}</td>`;
+      if (c.key === 'statement')      return `<td class="c-stmt" title="${esc(val)}">${esc(val)}</td>`;
+      return `<td class="${c.cls}">${esc(String(val))}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
 
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
 }
 
+// ── 유틸 ─────────────────────────────────────────────────────────────────────
 function fmtDur(ms) {
-  if (ms == null) return '-';
+  if (ms == null || ms === '') return '-';
   if (ms < 1000)  return ms + 'ms';
   if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
   return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';

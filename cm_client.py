@@ -15,9 +15,9 @@ requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 def build_filter(
     user: Optional[str] = None,
-    table: Optional[str] = None,
+    keyword: Optional[str] = None,
     database: Optional[str] = None,
-    query_state: Optional[str] = None,
+    query_state: Optional[str] = None,  # 쉼표 구분 다중 상태 가능 (예: "FINISHED,EXCEPTION")
 ) -> str:
     """
     CM impalaQueries filter 표현식 조립.
@@ -25,19 +25,24 @@ def build_filter(
     CM 필터 문법 예시:
         user = "admin"
         database = "mydb"
-        statement rlike "(?i).*table_name.*"
+        statement rlike "(?i).*keyword.*"
         queryState = "FINISHED"
+        queryState rlike "FINISHED|EXCEPTION"
     """
     parts = []
 
     if user:
         parts.append(f'user = "{user}"')
-    if table:
-        parts.append(f'statement rlike "(?i).*{table}.*"')
+    if keyword:
+        parts.append(f'statement rlike "(?i).*{keyword}.*"')
     if database:
         parts.append(f'database = "{database}"')
     if query_state:
-        parts.append(f'queryState = "{query_state}"')
+        states = [s.strip() for s in query_state.split(",") if s.strip()]
+        if len(states) == 1:
+            parts.append(f'queryState = "{states[0]}"')
+        elif len(states) > 1:
+            parts.append(f'queryState rlike "{"| ".join(states)}"')
 
     return " AND ".join(parts)
 

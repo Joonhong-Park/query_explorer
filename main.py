@@ -33,15 +33,16 @@ async def list_clusters():
 @app.get("/api/queries")
 async def get_queries(
     user:        Optional[str] = Query(None),
-    table:       Optional[str] = Query(None),
+    keyword:     Optional[str] = Query(None),
     database:    Optional[str] = Query(None),
     query_state: Optional[str] = Query(None),
     hours:       Optional[int] = Query(None),
     from_time:   Optional[str] = Query(None),
     to_time:     Optional[str] = Query(None),
     limit:       int           = Query(100, ge=1, le=1000),
+    clusters:    Optional[str] = Query(None),  # 쉼표 구분 cluster ID
 ):
-    filter_str       = build_filter(user, table, database, query_state)
+    filter_str       = build_filter(user, keyword, database, query_state)
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
 
     params = {"limit": limit}
@@ -49,8 +50,10 @@ async def get_queries(
     if from_iso:   params["from"]   = from_iso
     if to_iso:     params["to"]     = to_iso
 
+    cluster_ids = [c.strip() for c in clusters.split(",")] if clusters else None
+
     loop   = get_event_loop()
-    result = await loop.run_in_executor(None, fetch_all_clusters, params)
+    result = await loop.run_in_executor(None, fetch_all_clusters, params, cluster_ids)
     result["filter_applied"] = filter_str
     return result
 

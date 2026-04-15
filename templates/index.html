@@ -13,8 +13,9 @@
   /* ── 필터 패널 ── */
   .filters {
     background: #13161f; border-bottom: 1px solid #2a2d3e;
-    padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    padding: 10px 20px; display: flex; flex-direction: column; gap: 8px;
   }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
   .fg { display: flex; flex-direction: column; gap: 3px; }
   .fg label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
   .fg input[type="text"],
@@ -134,61 +135,65 @@
 <header><h1>⚡ Query Explorer</h1></header>
 
 <div class="filters">
-  <div class="fg">
-    <label>User</label>
-    <input id="f-user" type="text" placeholder="username">
-  </div>
-  <div class="fg">
-    <label>Keyword</label>
-    <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
-  </div>
-  <div class="fg">
-    <label>상태</label>
-    <div class="state-checks">
-      <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
-      <label><input type="checkbox" class="f-state" value="RUNNING"   checked> <span class="s s-RUNNING">RUNNING</span></label>
-      <label><input type="checkbox" class="f-state" value="EXCEPTION" checked> <span class="s s-EXCEPTION">EXCEPTION</span></label>
-      <label><input type="checkbox" class="f-state" value="QUEUED"    checked> <span class="s s-QUEUED">QUEUED</span></label>
+  <div class="filter-row">
+    <div class="fg">
+      <label>User</label>
+      <input id="f-user" type="text" placeholder="username">
+    </div>
+    <div class="fg">
+      <label>Keyword</label>
+      <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
+    </div>
+    <div class="fg">
+      <label>상태</label>
+      <div class="state-checks">
+        <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
+        <label><input type="checkbox" class="f-state" value="RUNNING"   checked> <span class="s s-RUNNING">RUNNING</span></label>
+        <label><input type="checkbox" class="f-state" value="EXCEPTION" checked> <span class="s s-EXCEPTION">EXCEPTION</span></label>
+        <label><input type="checkbox" class="f-state" value="QUEUED"    checked> <span class="s s-QUEUED">QUEUED</span></label>
+      </div>
+    </div>
+    <div class="fg">
+      <label>빠른 범위</label>
+      <div class="presets">
+        <button class="preset-btn active" onclick="setPreset(1,this)">1h</button>
+        <button class="preset-btn" onclick="setPreset(6,this)">6h</button>
+        <button class="preset-btn" onclick="setPreset(24,this)">24h</button>
+        <button class="preset-btn" onclick="setPreset(72,this)">3d</button>
+        <button class="preset-btn" onclick="setPreset(168,this)">7d</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>시작 일시</label>
+      <input id="f-from" type="datetime-local">
+    </div>
+    <div class="fg">
+      <label>종료 일시</label>
+      <input id="f-to" type="datetime-local">
     </div>
   </div>
-  <div class="fg">
-    <label>빠른 범위</label>
-    <div class="presets">
-      <button class="preset-btn active" onclick="setPreset(1,this)">1h</button>
-      <button class="preset-btn" onclick="setPreset(6,this)">6h</button>
-      <button class="preset-btn" onclick="setPreset(24,this)">24h</button>
-      <button class="preset-btn" onclick="setPreset(72,this)">3d</button>
-      <button class="preset-btn" onclick="setPreset(168,this)">7d</button>
+  <div class="filter-row">
+    <div class="fg">
+      <label>클러스터</label>
+      <select id="f-cluster">
+        <option value="">전체</option>
+      </select>
     </div>
-  </div>
-  <div class="fg">
-    <label>시작 일시</label>
-    <input id="f-from" type="datetime-local">
-  </div>
-  <div class="fg">
-    <label>종료 일시</label>
-    <input id="f-to" type="datetime-local">
-  </div>
-  <div class="fg">
-    <label>클러스터</label>
-    <select id="f-cluster">
-      <option value="">전체</option>
-    </select>
-  </div>
-  <div class="fg">
-    <label>결과 수</label>
-    <select id="f-limit">
-      <option value="100">100건</option>
-      <option value="300">300건</option>
-      <option value="500">500건</option>
-      <option value="1000" selected>1000건</option>
-    </select>
-  </div>
-  <div class="fg" style="justify-content:flex-end">
-    <label>&nbsp;</label>
-    <div style="display:flex;gap:6px;">
-      <button class="btn btn-primary" id="btn-search" onclick="search()">검색</button>
-      <button class="btn btn-secondary" onclick="reset()">초기화</button>
+    <div class="fg">
+      <label>결과 수</label>
+      <select id="f-limit">
+        <option value="100" selected>100건</option>
+        <option value="300">300건</option>
+        <option value="500">500건</option>
+        <option value="1000">1000건</option>
+      </select>
+    </div>
+    <div class="fg" style="justify-content:flex-end">
+      <label>&nbsp;</label>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary" id="btn-search" onclick="search()">검색</button>
+        <button class="btn btn-secondary" onclick="reset()">초기화</button>
+      </div>
     </div>
   </div>
 </div>

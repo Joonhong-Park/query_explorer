@@ -46,19 +46,23 @@
   .btn-secondary:hover { background: #363a52; }
   .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
 
-  /* ── 상태 바 ── */
-  .status-bar {
-    background: #0d0f16; border-bottom: 1px solid #1e2130;
-    padding: 5px 20px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-height: 30px;
+  /* ── 클러스터 탭 ── */
+  .cluster-tabs {
+    background: #0d0f16; border-bottom: 1px solid #2a2d3e;
+    padding: 0 20px; display: flex; gap: 0; overflow-x: auto;
   }
-  .cl-badge { padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .badge-ok  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
-  .badge-err { background: #b71c1c66; color: #ef9a9a; border: 1px solid #c62828; }
-  .summary    { margin-left: auto; font-size: 11px; color: #888; }
-  .filter-tag { font-family: monospace; font-size: 11px; color: #ffa726; }
+  .cluster-tab {
+    padding: 8px 16px; font-size: 12px; font-weight: 500; color: #555;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    white-space: nowrap; transition: color .15s; display: flex; align-items: center; gap: 6px;
+  }
+  .cluster-tab:hover { color: #aaa; }
+  .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
+  .tab-count { font-size: 10px; background: #1e2130; color: #666; padding: 1px 6px; border-radius: 8px; }
+  .cluster-tab.active .tab-count { background: #1a2a4a; color: #7eb8f7; }
 
   /* ── 테이블 ── */
-  .table-wrap { overflow: auto; height: calc(100vh - 185px); }
+  .table-wrap { overflow: auto; height: calc(100vh - 220px); }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: #13161f; color: #888; text-align: left;
@@ -195,8 +199,10 @@
   </div>
 </div>
 
-<div class="status-bar" id="status-bar">
-  <span style="color:#555">검색 조건을 입력하고 검색하세요</span>
+<div class="cluster-tabs" id="cluster-tabs">
+  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
+    전체 <span class="tab-count" id="tab-count-all">-</span>
+  </div>
 </div>
 
 <div class="table-wrap" id="table-wrap">
@@ -204,10 +210,11 @@
 </div>
 
 <script>
-let _allRows = [];
-let _rows    = [];
-let _sortCol = 'startTime';
-let _sortDir = -1;
+let _allRows       = [];
+let _rows          = [];
+let _sortCol       = 'startTime';
+let _sortDir       = -1;
+let _activeCluster = '';
 
 const COLS = [
   { key: '_cluster',       label: '클러스터', cls: 'c-cluster', sort: true  },
@@ -230,13 +237,45 @@ async function loadClusters() {
     const res  = await fetch('/api/clusters');
     const data = await res.json();
     const sel  = document.getElementById('f-cluster');
+    const tabs = document.getElementById('cluster-tabs');
     data.clusters.forEach(c => {
+      // 드롭다운
       const opt = document.createElement('option');
-      opt.value       = c;
-      opt.textContent = c;
+      opt.value = c; opt.textContent = c;
       sel.appendChild(opt);
+      // 탭
+      const div = document.createElement('div');
+      div.className       = 'cluster-tab';
+      div.dataset.cluster = c;
+      div.innerHTML       = `${c} <span class="tab-count" id="tab-count-${c}">-</span>`;
+      div.onclick         = () => selectTab(div);
+      tabs.appendChild(div);
     });
   } catch(e) {}
+}
+
+function selectTab(el) {
+  document.querySelectorAll('.cluster-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  _activeCluster = el.dataset.cluster;
+  applyTabFilter();
+}
+
+function applyTabFilter() {
+  _rows = _activeCluster
+    ? _allRows.filter(q => q._cluster === _activeCluster)
+    : [..._allRows];
+  renderTable(_rows);
+}
+
+function updateTabCounts() {
+  document.getElementById('tab-count-all').textContent = _allRows.length;
+  document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
+    const c = tab.dataset.cluster;
+    if (!c) return;
+    const el = document.getElementById(`tab-count-${c}`);
+    if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
+  });
 }
 
 function setPreset(hours, btn) {
@@ -280,9 +319,8 @@ async function search() {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
     _allRows = data.queries || [];
-    _rows    = [..._allRows];
-    renderTable(_rows);
-    renderStatusBar(data);
+    updateTabCounts();
+    applyTabFilter();
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   } finally {
@@ -295,9 +333,10 @@ function reset() {
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
   document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));
-  document.getElementById('status-bar').innerHTML = '<span style="color:#555">검색 조건을 입력하고 검색하세요</span>';
-  document.getElementById('table-wrap').innerHTML  = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
-  _allRows = []; _rows = [];
+  document.getElementById('table-wrap').innerHTML = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
+  _allRows = []; _rows = []; _activeCluster = '';
+  selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
+  updateTabCounts();
 }
 
 function sortBy(col) {
@@ -309,18 +348,6 @@ function sortBy(col) {
     return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
   });
   renderTable(_rows);
-}
-
-function renderStatusBar(data) {
-  const badges = (data.cluster_results || []).map(c => {
-    const cls = c.error ? 'badge-err' : 'badge-ok';
-    const tip = c.error ? c.error : `${c.count}건`;
-    return `<span class="cl-badge ${cls}">${c.cluster} (${tip})</span>`;
-  }).join('');
-  const tag = data.filter_applied
-    ? `<span class="filter-tag">filter: ${data.filter_applied}</span>` : '';
-  document.getElementById('status-bar').innerHTML =
-    badges + tag + `<span class="summary">총 ${_allRows.length}건</span>`;
 }
 
 function renderTable(rows) {

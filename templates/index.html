@@ -99,6 +99,24 @@
 
   .empty   { text-align: center; padding: 60px; color: #555; }
   .loading { text-align: center; padding: 60px; color: #7eb8f7; }
+
+  /* ── 쿼리 펼치기 ── */
+  .toggle-btn {
+    background: none; border: none; color: #666; cursor: pointer;
+    font-size: 11px; padding: 2px 4px; border-radius: 3px; line-height: 1;
+  }
+  .toggle-btn:hover { color: #aaa; background: #2a2d3e; }
+  .toggle-btn.open  { color: #7eb8f7; }
+  tr.sql-row td {
+    background: #0d0f16; padding: 0;
+    border-bottom: 2px solid #2a2d3e;
+  }
+  .sql-block {
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    color: #a8d8a8; white-space: pre-wrap; word-break: break-all;
+    padding: 10px 16px 10px 40px; line-height: 1.6;
+    max-height: 300px; overflow-y: auto;
+  }
 </style>
 </head>
 <body>
@@ -353,12 +371,15 @@ function renderTable(rows) {
     return;
   }
 
-  const thead = '<thead><tr>' + COLS.map(c => {
+  const colCount = COLS.length + 1; // toggle 버튼 열 포함
+
+  const thead = '<thead><tr><th></th>' + COLS.map(c => {
     const cls = _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
     return `<th class="${cls}" onclick="sortBy('${c.key}')">${c.label}</th>`;
   }).join('') + '</tr></thead>';
 
-  const tbody = rows.map(q => {
+  const tbody = rows.map((q, i) => {
+    const stmt = q.statement ?? '';
     const cells = COLS.map(c => {
       let val = q[c.key] ?? '';
       if (c.key === 'queryState')     return `<td><span class="s s-${val}">${val}</span></td>`;
@@ -367,11 +388,34 @@ function renderTable(rows) {
       if (c.key === 'statement')      return `<td class="c-stmt" title="${esc(val)}">${esc(val)}</td>`;
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
-    return `<tr>${cells}</tr>`;
+
+    const mainRow = `<tr>
+      <td style="width:28px;text-align:center;">
+        <button class="toggle-btn" id="tbtn-${i}" onclick="toggleSql(${i})" title="쿼리 펼치기">▶</button>
+      </td>
+      ${cells}
+    </tr>`;
+
+    const sqlRow = `<tr class="sql-row" id="sqlrow-${i}" style="display:none;">
+      <td colspan="${colCount}">
+        <div class="sql-block">${esc(stmt)}</div>
+      </td>
+    </tr>`;
+
+    return mainRow + sqlRow;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
+}
+
+function toggleSql(i) {
+  const row = document.getElementById(`sqlrow-${i}`);
+  const btn = document.getElementById(`tbtn-${i}`);
+  const open = row.style.display === 'none';
+  row.style.display = open ? '' : 'none';
+  btn.textContent   = open ? '▼' : '▶';
+  btn.classList.toggle('open', open);
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────────────────────

@@ -8,6 +8,8 @@ SSH 터널 연결 + 브라우저 자동 오픈 (Windows .exe용)
     → dist/QueryExplorer.exe 생성
 """
 
+import json
+import os
 import select
 import socket
 import threading
@@ -15,26 +17,53 @@ import webbrowser
 import time
 import tkinter as tk
 from tkinter import messagebox
+from pathlib import Path
 
 import paramiko
 
 # ── 서버 설정 (실제 값으로 변경 후 빌드) ─────────────────────────────────────
-TUNNEL_HOST = "tunnel_server"   # 터널링 서버 주소 또는 IP
+TUNNEL_HOST = "tunnel_server"
 TUNNEL_PORT = 22
-TUNNEL_USER = "tunnel_user"     # 터널링 서버 계정
+TUNNEL_USER = "tunnel_user"
 
-NODE_HOST   = "node1"           # node1 내부 주소
+NODE_HOST   = "node1"
 NODE_PORT   = 22
-NODE_USER   = "node_user"       # node1 계정
+NODE_USER   = "node_user"
 
 LOCAL_PORT  = 9090
 REMOTE_PORT = 9090
 APP_URL     = f"http://localhost:{LOCAL_PORT}"
 # ─────────────────────────────────────────────────────────────────────────────
 
+# 비밀번호 저장 경로: %APPDATA%\QueryExplorer\credentials.json
+CRED_PATH = Path(os.environ.get("APPDATA", "~")) / "QueryExplorer" / "credentials.json"
+
+
+def load_credentials() -> dict:
+    try:
+        return json.loads(CRED_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_credentials(tunnel_pw: str, node_pw: str):
+    CRED_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CRED_PATH.write_text(
+        json.dumps({"tunnel_pw": tunnel_pw, "node_pw": node_pw}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def clear_credentials():
+    try:
+        CRED_PATH.unlink()
+    except Exception:
+        pass
+
+
+# ── SSH 터널 ──────────────────────────────────────────────────────────────────
 
 def _forward_handler(local_sock, transport):
-    """로컬 소켓 ↔ SSH 채널 간 데이터 중계"""
     try:
         chan = transport.open_channel(
             "direct-tcpip",
@@ -69,7 +98,6 @@ class TunnelManager:
         self._stop         = threading.Event()
 
     def connect(self, tunnel_pw, node_pw):
-        # 1. 터널링 서버 연결
         self.tunnel_client = paramiko.SSHClient()
         self.tunnel_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.tunnel_client.connect(
@@ -78,12 +106,10 @@ class TunnelManager:
             timeout=15,
         )
 
-        # 2. 터널링 서버 → node1:22 채널 오픈
         ch = self.tunnel_client.get_transport().open_channel(
             "direct-tcpip", (NODE_HOST, NODE_PORT), ("127.0.0.1", 0)
         )
 
-        # 3. 채널을 소켓으로 사용하여 node1 연결
         self.node_client = paramiko.SSHClient()
         self.node_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.node_client.connect(
@@ -91,7 +117,6 @@ class TunnelManager:
             sock=ch, timeout=15,
         )
 
-        # 4. 로컬 포트포워딩 서버 시작
         self._start_forward(self.node_client.get_transport())
 
     def _start_forward(self, transport):
@@ -118,16 +143,12 @@ class TunnelManager:
 
     def disconnect(self):
         self._stop.set()
-        if self.node_client:
-            try:
-                self.node_client.close()
-            except Exception:
-                pass
-        if self.tunnel_client:
-            try:
-                self.tunnel_client.close()
-            except Exception:
-                pass
+        for client in (self.node_client, self.tunnel_client):
+            if client:
+                try:
+                    client.close()
+                except Exception:
+                    pass
 
 
 # ── GUI ───────────────────────────────────────────────────────────────────────
@@ -145,13 +166,13 @@ class App(tk.Tk):
         self.title("Query Explorer")
         self.configure(bg=BG)
         self.resizable(False, False)
-        self.tunnel = TunnelManager()
+        self.tunnel    = TunnelManager()
         self._connected = False
         self._build_ui()
+        self._load_saved()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_ui(self):
-        # 타이틀
         tk.Label(self, text="⚡ Query Explorer", bg=BG, fg=ACCENT,
                  font=("Segoe UI", 15, "bold")).pack(pady=(24, 2))
         tk.Label(self, text="SSH 터널 연결", bg=BG, fg="#666",
@@ -161,11 +182,30 @@ class App(tk.Tk):
         frame.pack(padx=36)
 
         self.e_tunnel_pw = self._entry_row(
-            frame, f"터널링 서버 비밀번호\n({TUNNEL_USER}@{TUNNEL_HOST})"
+            frame, f"터널링 서버 비밀번호  ({TUNNEL_USER}@{TUNNEL_HOST})"
         )
         self.e_node_pw = self._entry_row(
-            frame, f"node1 비밀번호\n({NODE_USER}@{NODE_HOST})"
+            frame, f"node1 비밀번호  ({NODE_USER}@{NODE_HOST})"
         )
+
+        # 비밀번호 저장 체크박스
+        self._save_var = tk.BooleanVar(value=False)
+        chk_frame = tk.Frame(self, bg=BG)
+        chk_frame.pack(padx=36, fill="x")
+        self._chk = tk.Checkbutton(
+            chk_frame, text="비밀번호 저장", variable=self._save_var,
+            bg=BG, fg="#aaa", selectcolor=ENTRY_BG,
+            activebackground=BG, activeforeground=FG,
+            font=("Segoe UI", 9), command=self._on_save_toggle,
+        )
+        self._chk.pack(side="left")
+        self._btn_clear = tk.Button(
+            chk_frame, text="저장 삭제", bg="#2a2d3e", fg="#888",
+            relief="flat", font=("Segoe UI", 8), cursor="hand2",
+            command=self._clear_saved,
+        )
+        # 저장된 값 있을 때만 표시
+        self._btn_clear_visible = False
 
         self.btn = tk.Button(
             self, text="연결 및 브라우저 열기",
@@ -173,7 +213,7 @@ class App(tk.Tk):
             font=("Segoe UI", 10, "bold"), relief="flat",
             cursor="hand2", pady=8, command=self._connect,
         )
-        self.btn.pack(pady=(10, 6), padx=36, fill="x")
+        self.btn.pack(pady=(12, 6), padx=36, fill="x")
 
         self.lbl_status = tk.Label(self, text="", bg=BG, fg="#888",
                                    font=("Segoe UI", 9), wraplength=280)
@@ -182,7 +222,7 @@ class App(tk.Tk):
         self.bind("<Return>", lambda _: self._connect())
 
     def _entry_row(self, parent, label):
-        tk.Label(parent, text=label, bg=BG, fg=FG,
+        tk.Label(parent, text=label, bg=BG, fg="#aaa",
                  font=("Segoe UI", 9), justify="left", anchor="w").pack(fill="x")
         e = tk.Entry(parent, bg=ENTRY_BG, fg=FG, insertbackground=FG,
                      font=("Segoe UI", 10), relief="flat",
@@ -190,6 +230,33 @@ class App(tk.Tk):
                      width=32, show="*")
         e.pack(pady=(3, 12), ipady=6)
         return e
+
+    def _load_saved(self):
+        """저장된 비밀번호가 있으면 자동으로 채움"""
+        creds = load_credentials()
+        if creds.get("tunnel_pw") and creds.get("node_pw"):
+            self.e_tunnel_pw.insert(0, creds["tunnel_pw"])
+            self.e_node_pw.insert(0, creds["node_pw"])
+            self._save_var.set(True)
+            self._btn_clear.pack(side="right", padx=(8, 0))
+            self._btn_clear_visible = True
+            self._set_status("저장된 비밀번호를 불러왔습니다", "#888")
+
+    def _on_save_toggle(self):
+        """체크 해제 시 저장 파일 삭제"""
+        if not self._save_var.get():
+            clear_credentials()
+            self._btn_clear.pack_forget()
+            self._btn_clear_visible = False
+
+    def _clear_saved(self):
+        clear_credentials()
+        self._save_var.set(False)
+        self._btn_clear.pack_forget()
+        self._btn_clear_visible = False
+        self.e_tunnel_pw.delete(0, "end")
+        self.e_node_pw.delete(0, "end")
+        self._set_status("저장된 비밀번호를 삭제했습니다", "#888")
 
     def _connect(self):
         if self._connected:
@@ -202,6 +269,13 @@ class App(tk.Tk):
         if not tunnel_pw or not node_pw:
             messagebox.showwarning("입력 오류", "비밀번호를 모두 입력해주세요.")
             return
+
+        # 저장 체크 시 연결 전에 저장
+        if self._save_var.get():
+            save_credentials(tunnel_pw, node_pw)
+            if not self._btn_clear_visible:
+                self._btn_clear.pack(side="right", padx=(8, 0))
+                self._btn_clear_visible = True
 
         self.btn.config(state="disabled", text="연결 중...")
         self._set_status("터널링 서버에 연결 중...", "#ffa726")

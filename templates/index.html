@@ -72,11 +72,14 @@
     position: sticky; top: 0; white-space: nowrap;
     cursor: pointer; user-select: none;
   }
-  thead th:hover { color: #bbb; }
-  thead th.no-sort { cursor: default; }
-  thead th.no-sort:hover { color: #888; }
-  .sort-asc::after  { content: ' ▲'; font-size: 10px; }
-  .sort-desc::after { content: ' ▼'; font-size: 10px; }
+  thead th.sortable { color: #aaa; }
+  thead th.sortable:hover { color: #e0e0e0; }
+  thead th.no-sort { cursor: default; color: #666; }
+  thead th.no-sort:hover { color: #666; }
+  /* 정렬 가능 표시: 비활성 ↕, 활성 ▲▼ */
+  thead th.sortable:not(.sort-asc):not(.sort-desc)::after { content: ' ↕'; font-size: 9px; color: #3d4060; }
+  thead th.sort-asc::after  { content: ' ▲'; font-size: 10px; color: #7eb8f7; }
+  thead th.sort-desc::after { content: ' ▼'; font-size: 10px; color: #7eb8f7; }
 
   tbody tr.data-row { border-bottom: 1px solid #1a1d2e; }
   tbody tr.data-row:hover { background: #1c2035; }
@@ -227,8 +230,8 @@ const COLS = [
   { key: '_connected_user',  label: 'Connected User',cls: 'c-conn-user', sort: false },
   { key: 'queryState',       label: '상태',          cls: '',            sort: true  },
   { key: 'statement',        label: 'Statement',     cls: 'c-stmt',      sort: false },
-  { key: 'durationMillis',   label: '실행시간',      cls: 'c-dur',       sort: true  },
-  { key: 'rowsProduced',     label: 'Rows',          cls: 'c-rows',      sort: true  },
+  { key: 'durationMillis',   label: '실행시간',      cls: 'c-dur',       sort: false },
+  { key: 'rowsProduced',     label: 'Rows',          cls: 'c-rows',      sort: false },
   { key: 'startTime',        label: '시작시간',      cls: 'c-time',      sort: true  },
   { key: 'endTime',          label: '종료시간',      cls: 'c-time',      sort: true  },
   { key: 'queryStatus',      label: 'queryStatus',   cls: 'c-qstatus',   sort: false },
@@ -386,7 +389,7 @@ function renderTable(rows) {
   const colCount = COLS.length;
   const thead = '<thead><tr>' + COLS.map(c => {
     if (!c.sort) return `<th class="no-sort">${c.label}</th>`;
-    const cls = _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+    const cls = ['sortable', _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : ''].join(' ').trim();
     return `<th class="${cls}" onclick="sortBy('${c.key}')">${c.label}</th>`;
   }).join('') + '</tr></thead>';
 

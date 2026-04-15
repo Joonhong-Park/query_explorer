@@ -27,7 +27,6 @@
   .fg input[type="datetime-local"] { min-width: 172px; color-scheme: dark; }
   .fg input:focus, .fg select:focus { outline: none; border-color: #5b7fe0; }
 
-  /* 프리셋 버튼 */
   .presets { display: flex; gap: 4px; }
   .preset-btn {
     padding: 4px 8px; border: 1px solid #2e3148; border-radius: 4px;
@@ -35,12 +34,10 @@
   }
   .preset-btn:hover, .preset-btn.active { background: #3d5afe; color: #fff; border-color: #3d5afe; }
 
-  /* 상태 체크박스 */
   .state-checks { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
   .state-checks label { display: flex; align-items: center; gap: 3px; font-size: 12px; cursor: pointer; }
   .state-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
 
-  /* 액션 버튼 */
   .btn { padding: 5px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; height: 30px; }
   .btn-primary   { background: #3d5afe; color: #fff; }
   .btn-primary:hover { background: #536dfe; }
@@ -51,15 +48,20 @@
   /* ── 클러스터 탭 ── */
   .cluster-tabs {
     background: #0d0f16; border-bottom: 1px solid #2a2d3e;
-    padding: 0 20px; display: flex; gap: 0;
+    padding: 0 20px; display: flex; gap: 0; overflow-x: auto;
   }
   .cluster-tab {
-    padding: 8px 18px; font-size: 12px; font-weight: 500; color: #666;
+    padding: 8px 16px; font-size: 12px; font-weight: 500; color: #555;
     cursor: pointer; border-bottom: 2px solid transparent;
-    white-space: nowrap; transition: color .15s;
+    white-space: nowrap; transition: color .15s; display: flex; align-items: center; gap: 6px;
   }
   .cluster-tab:hover { color: #aaa; }
   .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
+  .tab-count {
+    font-size: 10px; background: #1e2130; color: #666;
+    padding: 1px 6px; border-radius: 8px; font-weight: 400;
+  }
+  .cluster-tab.active .tab-count { background: #1a2a4a; color: #7eb8f7; }
 
   /* ── 상태 바 ── */
   .status-bar {
@@ -96,20 +98,11 @@
   .c-dur     { text-align: right; white-space: nowrap; }
   .c-time    { white-space: nowrap; color: #888; }
 
-  /* Statement 셀: 버튼 + 텍스트 한 줄 */
-  .c-stmt {
-    max-width: 420px; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .c-stmt-inner {
-    display: flex; align-items: center; gap: 5px;
-    white-space: nowrap; overflow: hidden;
-  }
+  .c-stmt { max-width: 420px; }
+  .c-stmt-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
   .toggle-btn {
-    flex-shrink: 0;
-    background: none; border: 1px solid #2e3148; color: #666;
-    cursor: pointer; font-size: 10px; padding: 1px 5px;
-    border-radius: 3px; line-height: 1.4;
+    flex-shrink: 0; background: none; border: 1px solid #2e3148; color: #666;
+    cursor: pointer; font-size: 10px; padding: 1px 5px; border-radius: 3px; line-height: 1.4;
   }
   .toggle-btn:hover { color: #aaa; border-color: #5b7fe0; }
   .toggle-btn.open  { color: #7eb8f7; border-color: #7eb8f7; }
@@ -124,30 +117,25 @@
   .s-RUNNING   { background: #0d47a166; color: #90caf9; border: 1px solid #1565c0; }
   .s-QUEUED    { background: #e65100aa; color: #ffcc02; border: 1px solid #e65100; }
 
-  /* ── 펼침 영역 ── */
-  tr.detail-row td {
-    background: #0d0f16; padding: 0;
-    border-bottom: 2px solid #2a2d3e;
-  }
+  /* ── 펼침/에러 영역 ── */
+  tr.detail-row td { background: #0d0f16; padding: 0; border-bottom: 2px solid #2a2d3e; }
   .detail-wrap { padding: 10px 16px; }
   .sql-block {
     font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
-    color: #a8d8a8; white-space: pre-wrap; word-break: break-all;
-    line-height: 1.6; max-height: 260px; overflow-y: auto;
-    background: #080a0f; border: 1px solid #1e2130;
-    border-radius: 4px; padding: 10px 12px;
+    color: #a8d8a8; white-space: pre-wrap; word-break: break-all; line-height: 1.6;
+    max-height: 260px; overflow-y: auto;
+    background: #080a0f; border: 1px solid #1e2130; border-radius: 4px; padding: 10px 12px;
   }
-  .err-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-    color: #ef5350; margin: 8px 0 4px;
-  }
+  .err-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #ef5350; margin: 8px 0 4px; }
   .err-block {
     font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
-    color: #ef9a9a; white-space: pre-wrap; word-break: break-all;
-    line-height: 1.5; max-height: 160px; overflow-y: auto;
-    background: #1a0a0a; border: 1px solid #c6282866;
-    border-radius: 4px; padding: 10px 12px;
+    color: #ef9a9a; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+    max-height: 160px; overflow-y: auto;
+    background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px; padding: 10px 12px;
   }
+  /* 에러 전용 행 (펼침 없이 항상 표시) */
+  tr.error-row td { background: #120808; padding: 0; border-bottom: 1px solid #2a1515; }
+  .error-row .err-block { margin: 8px 16px; max-height: 120px; }
 
   .empty   { text-align: center; padding: 60px; color: #555; }
   .loading { text-align: center; padding: 60px; color: #7eb8f7; }
@@ -157,7 +145,6 @@
 
 <header><h1>⚡ Query Explorer</h1></header>
 
-<!-- 필터 패널 -->
 <div class="filters">
   <div class="fg">
     <label>User</label>
@@ -179,9 +166,9 @@
   <div class="fg">
     <label>빠른 범위</label>
     <div class="presets">
-      <button class="preset-btn" onclick="setPreset(1,this)">1h</button>
+      <button class="preset-btn active" onclick="setPreset(1,this)">1h</button>
       <button class="preset-btn" onclick="setPreset(6,this)">6h</button>
-      <button class="preset-btn active" onclick="setPreset(24,this)">24h</button>
+      <button class="preset-btn" onclick="setPreset(24,this)">24h</button>
       <button class="preset-btn" onclick="setPreset(72,this)">3d</button>
       <button class="preset-btn" onclick="setPreset(168,this)">7d</button>
     </div>
@@ -206,7 +193,7 @@
   <div class="fg" style="justify-content:flex-end">
     <label>&nbsp;</label>
     <div style="display:flex;gap:6px;">
-      <button class="btn btn-primary"   id="btn-search" onclick="search()">검색</button>
+      <button class="btn btn-primary" id="btn-search" onclick="search()">검색</button>
       <button class="btn btn-secondary" onclick="reset()">초기화</button>
     </div>
   </div>
@@ -214,25 +201,25 @@
 
 <!-- 클러스터 탭 -->
 <div class="cluster-tabs" id="cluster-tabs">
-  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">전체</div>
+  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
+    전체 <span class="tab-count" id="tab-count-all">0</span>
+  </div>
 </div>
 
-<!-- 상태 바 -->
 <div class="status-bar" id="status-bar">
   <span style="color:#555">검색 조건을 입력하고 검색하세요</span>
 </div>
 
-<!-- 테이블 -->
 <div class="table-wrap" id="table-wrap">
   <div class="empty">검색 조건을 입력하고 검색하세요</div>
 </div>
 
 <script>
-// ── 상태 ──────────────────────────────────────────────────────────────────────
-let _rows        = [];
+let _allRows     = [];   // 전체 조회 결과 (탭 필터링 기준)
+let _rows        = [];   // 현재 표시 중인 결과
 let _sortCol     = 'startTime';
 let _sortDir     = -1;
-let _activeCluster = '';   // '' = 전체
+let _activeCluster = '';
 
 const COLS = [
   { key: '_cluster',       label: '클러스터', cls: 'c-cluster', sort: true  },
@@ -245,7 +232,7 @@ const COLS = [
 
 // ── 초기화 ────────────────────────────────────────────────────────────────────
 window.onload = () => {
-  setPreset(24, document.querySelector('.preset-btn.active'));
+  setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
 };
 
@@ -256,19 +243,41 @@ async function loadClusters() {
     const tabs = document.getElementById('cluster-tabs');
     data.clusters.forEach(c => {
       const div = document.createElement('div');
-      div.className   = 'cluster-tab';
-      div.dataset.cluster = c;
-      div.textContent = c;
-      div.onclick     = () => selectTab(div);
+      div.className        = 'cluster-tab';
+      div.dataset.cluster  = c;
+      div.innerHTML        = `${c} <span class="tab-count" id="tab-count-${c}">0</span>`;
+      div.onclick          = () => selectTab(div);
       tabs.appendChild(div);
     });
   } catch(e) {}
 }
 
+// 탭 클릭 → 클라이언트사이드 즉시 필터
 function selectTab(el) {
   document.querySelectorAll('.cluster-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   _activeCluster = el.dataset.cluster;
+  applyTabFilter();
+}
+
+function applyTabFilter() {
+  _rows = _activeCluster
+    ? _allRows.filter(q => q._cluster === _activeCluster)
+    : [..._allRows];
+  renderTable(_rows);
+  updateStatusSummary();
+}
+
+function updateTabCounts() {
+  // 전체 카운트
+  document.getElementById('tab-count-all').textContent = _allRows.length;
+  // 클러스터별
+  document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
+    const c = tab.dataset.cluster;
+    if (!c) return;
+    const el = document.getElementById(`tab-count-${c}`);
+    if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
+  });
 }
 
 // ── 프리셋 ────────────────────────────────────────────────────────────────────
@@ -307,17 +316,15 @@ async function search() {
 
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
-
   params.set('limit', v('f-limit') || '100');
-
-  if (_activeCluster) params.set('clusters', _activeCluster);
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
-    _rows = data.queries || [];
-    renderStatus(data);
-    renderTable(_rows);
+    _allRows = data.queries || [];
+    updateTabCounts();
+    applyTabFilter();         // 현재 활성 탭 기준 필터 적용
+    renderStatusBar(data);
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   } finally {
@@ -329,11 +336,12 @@ async function search() {
 function reset() {
   ['f-user','f-keyword','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
-  setPreset(24, document.querySelectorAll('.preset-btn')[2]);
+  setPreset(1, document.querySelector('.preset-btn'));
   selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
   document.getElementById('status-bar').innerHTML = '<span style="color:#555">검색 조건을 입력하고 검색하세요</span>';
   document.getElementById('table-wrap').innerHTML  = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
-  _rows = [];
+  _allRows = []; _rows = [];
+  updateTabCounts();
 }
 
 // ── 정렬 ─────────────────────────────────────────────────────────────────────
@@ -349,7 +357,7 @@ function sortBy(col) {
 }
 
 // ── 렌더링 ────────────────────────────────────────────────────────────────────
-function renderStatus(data) {
+function renderStatusBar(data) {
   const badges = (data.cluster_results || []).map(c => {
     const cls = c.error ? 'badge-err' : 'badge-ok';
     const tip = c.error ? c.error : `${c.count}건`;
@@ -358,7 +366,16 @@ function renderStatus(data) {
   const tag = data.filter_applied
     ? `<span class="filter-tag">filter: ${data.filter_applied}</span>` : '';
   document.getElementById('status-bar').innerHTML =
-    badges + tag + `<span class="summary">총 ${data.total}건 / 표시 ${(data.queries||[]).length}건</span>`;
+    badges + tag + `<span class="summary" id="status-summary">총 ${_allRows.length}건</span>`;
+}
+
+function updateStatusSummary() {
+  const el = document.getElementById('status-summary');
+  if (el) {
+    el.textContent = _activeCluster
+      ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
+      : `총 ${_allRows.length}건`;
+  }
 }
 
 function renderTable(rows) {
@@ -375,9 +392,9 @@ function renderTable(rows) {
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt    = q.statement    ?? '';
-    const errMsg  = q.errorMessage ?? q.error ?? '';
-    const isError = q.queryState === 'EXCEPTION';
+    const stmt       = q.statement   ?? '';
+    const errMsg     = q.queryStatus ?? '';   // CM API: queryStatus에 에러 메시지 포함
+    const isException = q.queryState === 'EXCEPTION';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -397,7 +414,7 @@ function renderTable(rows) {
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
-    // SQL 펼침 행 (▶ 버튼으로 토글)
+    // SQL 펼침 행
     const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
       <td colspan="${colCount}">
         <div class="detail-wrap">
@@ -406,14 +423,11 @@ function renderTable(rows) {
       </td>
     </tr>`;
 
-    // 에러 로그 행 (EXCEPTION + errorMessage 있으면 항상 표시)
-    const errorRow = isError && errMsg
-      ? `<tr class="detail-row">
+    // 에러 로그 행 (EXCEPTION + queryStatus 있으면 항상 표시)
+    const errorRow = isException && errMsg
+      ? `<tr class="error-row">
           <td colspan="${colCount}">
-            <div class="detail-wrap" style="padding-top:0;">
-              <div class="err-label">Error Message</div>
-              <div class="err-block">${esc(errMsg)}</div>
-            </div>
+            <div class="err-block" style="margin:6px 16px;">${esc(errMsg)}</div>
           </td>
         </tr>`
       : '';

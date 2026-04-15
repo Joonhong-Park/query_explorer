@@ -93,7 +93,7 @@
   .c-dur       { text-align: right; white-space: nowrap; }
   .c-rows      { text-align: right; white-space: nowrap; color: #888; font-size: 12px; }
   .c-time      { white-space: nowrap; color: #888; }
-  .c-qstatus   { font-family: monospace; font-size: 11px; color: #ef9a9a; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-qstatus   { font-family: monospace; font-size: 11px; color: #ef9a9a; max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .c-stmt { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stmt-text {
@@ -435,13 +435,9 @@ function renderTable(rows) {
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
+    // detail-wrap은 빈 상태로 두고 클릭 시 lazy 렌더링
     const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
-      <td colspan="${colCount}">
-        <div class="detail-wrap">
-          <div class="sql-block">${esc(stmt)}</div>
-          ${errMsg ? `<div class="err-block">${esc(errMsg)}</div>` : ''}
-        </div>
-      </td>
+      <td colspan="${colCount}"><div class="detail-wrap" id="dwrap-${i}"></div></td>
     </tr>`;
 
     return `<tr class="data-row">${cells}</tr>${detailRow}`;
@@ -450,9 +446,10 @@ function renderTable(rows) {
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
 
-  // 정렬/탭 전환 후 열려있던 행 복원
+  // 정렬/탭 전환 후 열려있던 행 복원 (lazy 렌더링 포함)
   rows.forEach((q, i) => {
     if (_openRows.has(q.queryId)) {
+      _fillDetail(i, q);
       const row = document.getElementById(`drow-${i}`);
       const btn = document.getElementById(`tbtn-${i}`);
       if (row) { row.style.display = ''; btn.textContent = '▼'; btn.classList.add('open'); }
@@ -460,10 +457,21 @@ function renderTable(rows) {
   });
 }
 
+function _fillDetail(i, q) {
+  const wrap = document.getElementById(`dwrap-${i}`);
+  if (!wrap || wrap.hasChildNodes()) return; // 이미 채워진 경우 스킵
+  const stmt   = q.statement                ?? '';
+  const errMsg = q.attributes?.query_status ?? '';
+  let html = `<div class="sql-block">${esc(stmt)}</div>`;
+  if (errMsg) html += `<div class="err-block">${esc(errMsg)}</div>`;
+  wrap.innerHTML = html;
+}
+
 function toggleDetail(i) {
   const row = document.getElementById(`drow-${i}`);
   const btn = document.getElementById(`tbtn-${i}`);
   const open = row.style.display === 'none';
+  if (open) _fillDetail(i, _rows[i]); // 열 때만 lazy 렌더링
   row.style.display = open ? '' : 'none';
   btn.textContent   = open ? '▼' : '▶';
   btn.classList.toggle('open', open);

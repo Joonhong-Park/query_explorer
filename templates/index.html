@@ -402,7 +402,17 @@ function renderTable(rows) {
          <div class="err-block">${esc(errMsg)}</div>`
       : '';
 
-    const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
+    // EXCEPTION은 기본으로 펼쳐서 에러 로그 바로 노출
+    const defaultOpen = isError && errMsg;
+    if (defaultOpen) {
+      // 버튼도 열린 상태로 초기화 (렌더 후 처리)
+      setTimeout(() => {
+        const btn = document.getElementById(`tbtn-${i}`);
+        if (btn) { btn.textContent = '▼'; btn.classList.add('open'); }
+      }, 0);
+    }
+
+    const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:${defaultOpen ? '' : 'none'};">
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>

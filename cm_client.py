@@ -36,7 +36,7 @@ def build_filter(
         if len(states) == 1:
             parts.append(f'queryState = "{states[0]}"')
         elif len(states) > 1:
-            parts.append(f'queryState rlike "{"| ".join(states)}"')
+            parts.append(f'queryState rlike "({"|".join(states)})"')
 
     return " AND ".join(parts)
 

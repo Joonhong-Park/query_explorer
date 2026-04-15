@@ -50,7 +50,7 @@
   /* ── 클러스터 탭 ── */
   .cluster-tabs {
     background: #0d0f16; border-bottom: 1px solid #2a2d3e;
-    padding: 0 20px; display: flex; gap: 0; overflow-x: auto;
+    padding: 0 20px; display: flex; gap: 0; overflow-x: auto; align-items: stretch;
   }
   .cluster-tab {
     padding: 8px 16px; font-size: 12px; font-weight: 500; color: #555;
@@ -61,6 +61,7 @@
   .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
   .tab-count { font-size: 10px; background: #1e2130; color: #666; padding: 1px 6px; border-radius: 8px; }
   .cluster-tab.active .tab-count { background: #1a2a4a; color: #7eb8f7; }
+  .tab-summary { margin-left: auto; padding: 0 4px; font-size: 11px; color: #555; align-self: center; white-space: nowrap; }
 
   /* ── 테이블 ── */
   .table-wrap { overflow: auto; height: calc(100vh - 220px); }
@@ -81,27 +82,25 @@
   tbody tr.data-row:hover { background: #1c2035; }
   tbody td { padding: 6px 12px; vertical-align: middle; }
 
-  .c-toggle   { width: 32px; text-align: center; padding: 0 4px !important; }
-  .c-cluster  { color: #7eb8f7; font-weight: 500; }
-  .c-qid      { font-family: monospace; font-size: 11px; color: #666; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .c-user     { color: #ce93d8; }
-  .c-dur      { text-align: right; white-space: nowrap; }
-  .c-time     { white-space: nowrap; color: #888; }
-  .c-qstatus  { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-toggle  { width: 32px; text-align: center; padding: 0 4px !important; }
+  .c-cluster { color: #7eb8f7; font-weight: 500; }
+  .c-qid     { font-family: monospace; font-size: 11px; color: #666; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-user    { color: #ce93d8; }
+  .c-dur     { text-align: right; white-space: nowrap; }
+  .c-time    { white-space: nowrap; color: #888; }
+  .c-qstatus { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .c-stmt { max-width: 380px; }
-  .c-stmt-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
-  .toggle-btn {
-    flex-shrink: 0; background: none; border: 1px solid #2e3148; color: #666;
-    cursor: pointer; font-size: 10px; padding: 1px 5px; border-radius: 3px; line-height: 1.4;
-  }
-  .toggle-btn:hover { color: #aaa; border-color: #5b7fe0; }
-  .toggle-btn.open  { color: #7eb8f7; border-color: #7eb8f7; }
+  .c-stmt { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stmt-text {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-family: monospace; font-size: 12px; color: #ccc;
   }
-
+  .toggle-btn {
+    background: none; border: 1px solid #2e3148; color: #666;
+    cursor: pointer; font-size: 10px; padding: 1px 5px; border-radius: 3px; line-height: 1.4;
+  }
+  .toggle-btn:hover { color: #aaa; border-color: #5b7fe0; }
+  .toggle-btn.open  { color: #7eb8f7; border-color: #7eb8f7; }
 
   .s { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
   .s-FINISHED  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
@@ -109,7 +108,7 @@
   .s-RUNNING   { background: #0d47a166; color: #90caf9; border: 1px solid #1565c0; }
   .s-QUEUED    { background: #e65100aa; color: #ffcc02; border: 1px solid #e65100; }
 
-  /* ── SQL 펼침 / 에러 행 ── */
+  /* ── SQL / 에러 펼침 행 ── */
   tr.detail-row td { background: #0d0f16; padding: 0; border-bottom: 2px solid #2a2d3e; }
   .detail-wrap { padding: 10px 16px; }
   .sql-block {
@@ -118,13 +117,12 @@
     max-height: 260px; overflow-y: auto;
     background: #080a0f; border: 1px solid #1e2130; border-radius: 4px; padding: 10px 12px;
   }
-  tr.error-row td { background: #120808; padding: 0; border-bottom: 1px solid #2a1515; }
   .err-block {
     font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
     color: #ef9a9a; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
     max-height: 120px; overflow-y: auto;
     background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px;
-    padding: 8px 12px; margin: 6px 16px;
+    padding: 8px 12px; margin-top: 8px;
   }
 
   .empty   { text-align: center; padding: 60px; color: #555; }
@@ -203,6 +201,7 @@
   <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
     전체 <span class="tab-count" id="tab-count-all">-</span>
   </div>
+  <span class="tab-summary" id="tab-summary"></span>
 </div>
 
 <div class="table-wrap" id="table-wrap">
@@ -215,6 +214,7 @@ let _rows          = [];
 let _sortCol       = 'startTime';
 let _sortDir       = -1;
 let _activeCluster = '';
+let _openRows      = new Set(); // 펼쳐진 행의 queryId
 
 const COLS = [
   { key: '_toggle',        label: '',           cls: 'c-toggle',  sort: false },
@@ -240,18 +240,18 @@ async function loadClusters() {
     const data = await res.json();
     const sel  = document.getElementById('f-cluster');
     const tabs = document.getElementById('cluster-tabs');
+    const summary = document.getElementById('tab-summary');
     data.clusters.forEach(c => {
-      // 드롭다운
       const opt = document.createElement('option');
       opt.value = c; opt.textContent = c;
       sel.appendChild(opt);
-      // 탭
+
       const div = document.createElement('div');
       div.className       = 'cluster-tab';
       div.dataset.cluster = c;
       div.innerHTML       = `${c} <span class="tab-count" id="tab-count-${c}">-</span>`;
       div.onclick         = () => selectTab(div);
-      tabs.appendChild(div);
+      tabs.insertBefore(div, summary);
     });
   } catch(e) {}
 }
@@ -268,6 +268,7 @@ function applyTabFilter() {
     ? _allRows.filter(q => q._cluster === _activeCluster)
     : [..._allRows];
   renderTable(_rows);
+  updateTabSummary();
 }
 
 function updateTabCounts() {
@@ -278,6 +279,15 @@ function updateTabCounts() {
     const el = document.getElementById(`tab-count-${c}`);
     if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
   });
+}
+
+function updateTabSummary() {
+  const el = document.getElementById('tab-summary');
+  if (!el) return;
+  if (!_allRows.length) { el.textContent = ''; return; }
+  el.textContent = _activeCluster
+    ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
+    : `전체 ${_allRows.length}건`;
 }
 
 function setPreset(hours, btn) {
@@ -313,16 +323,24 @@ async function search() {
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
 
-  if (v('f-cluster')) params.set('clusters', v('f-cluster'));
+  const selectedCluster = v('f-cluster');
+  if (selectedCluster) params.set('clusters', selectedCluster);
 
-  params.set('limit', v('f-limit') || '1000');
+  params.set('limit', v('f-limit') || '100');
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
-    _allRows = data.queries || [];
+    _allRows  = data.queries || [];
+    _openRows = new Set();
     updateTabCounts();
-    applyTabFilter();
+
+    // 드롭다운 선택 클러스터에 맞는 탭 자동 활성화
+    const targetTab = selectedCluster
+      ? document.querySelector(`.cluster-tab[data-cluster="${selectedCluster}"]`)
+      : document.querySelector('.cluster-tab[data-cluster=""]');
+    if (targetTab) selectTab(targetTab);
+    else applyTabFilter();
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   } finally {
@@ -336,9 +354,10 @@ function reset() {
   document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));
   document.getElementById('table-wrap').innerHTML = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
-  _allRows = []; _rows = []; _activeCluster = '';
+  _allRows = []; _rows = []; _openRows = new Set(); _activeCluster = '';
   selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
   updateTabCounts();
+  updateTabSummary();
 }
 
 function sortBy(col) {
@@ -366,11 +385,8 @@ function renderTable(rows) {
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt        = q.statement   ?? '';
-    const errMsg      = q.queryStatus ?? '';
-    const isException = q.queryState  === 'EXCEPTION';
-    const queryId     = q.queryId     ?? '';
-    const cluster     = q._cluster    ?? '';
+    const stmt    = q.statement   ?? '';
+    const errMsg  = q.queryStatus ?? '';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -386,9 +402,7 @@ function renderTable(rows) {
         return `<td class="c-time">${fmtTime(val)}</td>`;
       if (c.key === 'statement')
         return `<td class="c-stmt">
-          <div class="c-stmt-inner">
-            <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
-          </div>
+          <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
         </td>`;
       if (c.key === 'queryStatus')
         return `<td class="c-qstatus" title="${esc(String(val))}">${esc(String(val))}</td>`;
@@ -399,7 +413,7 @@ function renderTable(rows) {
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>
-          ${errMsg ? `<div class="err-block" style="margin-top:8px;">${esc(errMsg)}</div>` : ''}
+          ${errMsg ? `<div class="err-block">${esc(errMsg)}</div>` : ''}
         </div>
       </td>
     </tr>`;
@@ -409,6 +423,15 @@ function renderTable(rows) {
 
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
+
+  // 정렬/탭 전환 후 열려있던 행 복원
+  rows.forEach((q, i) => {
+    if (_openRows.has(q.queryId)) {
+      const row = document.getElementById(`drow-${i}`);
+      const btn = document.getElementById(`tbtn-${i}`);
+      if (row) { row.style.display = ''; btn.textContent = '▼'; btn.classList.add('open'); }
+    }
+  });
 }
 
 function toggleDetail(i) {
@@ -418,6 +441,8 @@ function toggleDetail(i) {
   row.style.display = open ? '' : 'none';
   btn.textContent   = open ? '▼' : '▶';
   btn.classList.toggle('open', open);
+  const qid = _rows[i]?.queryId;
+  if (qid) { if (open) _openRows.add(qid); else _openRows.delete(qid); }
 }
 
 function fmtDur(ms) {
@@ -434,8 +459,9 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// Enter 키: 필터 입력 필드 포커스 중일 때만 검색
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') search();
+  if (e.key === 'Enter' && e.target.closest('.filters')) search();
 });
 </script>
 </body>

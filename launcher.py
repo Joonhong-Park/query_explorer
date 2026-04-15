@@ -3,11 +3,13 @@ Query Explorer Launcher
 SSH 터널 연결 + 브라우저 자동 오픈 (Windows .exe용)
 
 빌드:
-    pip install paramiko pyinstaller
+    pip install paramiko pyinstaller cryptography
     pyinstaller --onefile --noconsole --name QueryExplorer launcher.py
     → dist/QueryExplorer.exe 생성
 """
 
+import base64
+import hashlib
 import json
 import os
 import select
@@ -20,6 +22,7 @@ from tkinter import messagebox
 from pathlib import Path
 
 import paramiko
+from cryptography.fernet import Fernet, InvalidToken
 
 # ── 서버 설정 (실제 값으로 변경 후 빌드) ─────────────────────────────────────
 TUNNEL_HOST = "tunnel_server"
@@ -35,23 +38,28 @@ REMOTE_PORT = 9090
 APP_URL     = f"http://localhost:{LOCAL_PORT}"
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 비밀번호 저장 경로: %APPDATA%\QueryExplorer\credentials.json
-CRED_PATH = Path(os.environ.get("APPDATA", "~")) / "QueryExplorer" / "credentials.json"
+CRED_PATH = Path(os.environ.get("APPDATA", "~")) / "QueryExplorer" / "credentials.dat"
+
+
+def _fernet() -> Fernet:
+    """머신+사용자 고유 키로 Fernet 인스턴스 생성 (다른 PC에서는 복호화 불가)"""
+    raw = (os.environ.get("COMPUTERNAME", "") + os.environ.get("USERNAME", "")).encode()
+    key = base64.urlsafe_b64encode(hashlib.sha256(raw).digest())
+    return Fernet(key)
 
 
 def load_credentials() -> dict:
     try:
-        return json.loads(CRED_PATH.read_text(encoding="utf-8"))
-    except Exception:
+        data = _fernet().decrypt(CRED_PATH.read_bytes())
+        return json.loads(data)
+    except (FileNotFoundError, InvalidToken, Exception):
         return {}
 
 
 def save_credentials(tunnel_pw: str, node_pw: str):
     CRED_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CRED_PATH.write_text(
-        json.dumps({"tunnel_pw": tunnel_pw, "node_pw": node_pw}, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    data = json.dumps({"tunnel_pw": tunnel_pw, "node_pw": node_pw}).encode()
+    CRED_PATH.write_bytes(_fernet().encrypt(data))
 
 
 def clear_credentials():
@@ -117,6 +125,8 @@ class TunnelManager:
             sock=ch, timeout=15,
         )
 
+        # keepalive: 30초마다 패킷 전송으로 세션 유지
+        self.node_client.get_transport().set_keepalive(30)
         self._start_forward(self.node_client.get_transport())
 
     def _start_forward(self, transport):
@@ -140,6 +150,13 @@ class TunnelManager:
             srv.close()
 
         threading.Thread(target=loop, daemon=True).start()
+
+    def is_alive(self) -> bool:
+        try:
+            t = self.node_client and self.node_client.get_transport()
+            return t is not None and t.is_active()
+        except Exception:
+            return False
 
     def disconnect(self):
         self._stop.set()
@@ -166,8 +183,9 @@ class App(tk.Tk):
         self.title("Query Explorer")
         self.configure(bg=BG)
         self.resizable(False, False)
-        self.tunnel    = TunnelManager()
+        self.tunnel     = TunnelManager()
         self._connected = False
+        self._monitor   = None
         self._build_ui()
         self._load_saved()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -188,7 +206,6 @@ class App(tk.Tk):
             frame, f"node1 비밀번호  ({NODE_USER}@{NODE_HOST})"
         )
 
-        # 비밀번호 저장 체크박스
         self._save_var = tk.BooleanVar(value=False)
         chk_frame = tk.Frame(self, bg=BG)
         chk_frame.pack(padx=36, fill="x")
@@ -204,7 +221,6 @@ class App(tk.Tk):
             relief="flat", font=("Segoe UI", 8), cursor="hand2",
             command=self._clear_saved,
         )
-        # 저장된 값 있을 때만 표시
         self._btn_clear_visible = False
 
         self.btn = tk.Button(
@@ -232,7 +248,6 @@ class App(tk.Tk):
         return e
 
     def _load_saved(self):
-        """저장된 비밀번호가 있으면 자동으로 채움"""
         creds = load_credentials()
         if creds.get("tunnel_pw") and creds.get("node_pw"):
             self.e_tunnel_pw.insert(0, creds["tunnel_pw"])
@@ -243,7 +258,6 @@ class App(tk.Tk):
             self._set_status("저장된 비밀번호를 불러왔습니다", "#888")
 
     def _on_save_toggle(self):
-        """체크 해제 시 저장 파일 삭제"""
         if not self._save_var.get():
             clear_credentials()
             self._btn_clear.pack_forget()
@@ -270,7 +284,6 @@ class App(tk.Tk):
             messagebox.showwarning("입력 오류", "비밀번호를 모두 입력해주세요.")
             return
 
-        # 저장 체크 시 연결 전에 저장
         if self._save_var.get():
             save_credentials(tunnel_pw, node_pw)
             if not self._btn_clear_visible:
@@ -295,6 +308,23 @@ class App(tk.Tk):
         self._set_status(f"연결됨  {APP_URL}", "#66bb6a")
         self.btn.config(state="normal", text="브라우저 다시 열기")
         webbrowser.open(APP_URL)
+        self._start_monitor()
+
+    def _start_monitor(self):
+        """SSH 세션 끊김 감지: 10초마다 transport 상태 확인"""
+        def monitor():
+            while self._connected:
+                time.sleep(10)
+                if not self.tunnel.is_alive():
+                    self.after(0, self._on_disconnected)
+                    break
+        self._monitor = threading.Thread(target=monitor, daemon=True)
+        self._monitor.start()
+
+    def _on_disconnected(self):
+        self._connected = False
+        self._set_status("연결이 끊어졌습니다. 다시 연결해주세요.", "#ef5350")
+        self.btn.config(state="normal", text="연결 및 브라우저 열기")
 
     def _on_error(self, msg):
         self._connected = False

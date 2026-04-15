@@ -3,7 +3,7 @@ Query Explorer — Step 5
 검색 필터: user / table / database / 상태 / 시간 범위
 """
 
-from asyncio import get_event_loop
+from asyncio import get_running_loop
 from pathlib import Path
 from typing import Optional
 
@@ -54,7 +54,7 @@ async def get_queries(
 
     cluster_ids = [c.strip() for c in clusters.split(",")] if clusters else None
 
-    loop   = get_event_loop()
+    loop   = get_running_loop()
     result = await loop.run_in_executor(None, fetch_all_clusters, params, cluster_ids)
     result["filter_applied"] = filter_str
     return result
@@ -108,7 +108,7 @@ async def get_query_profile(cluster_id: str, query_id: str):
 
 @app.get("/api/test/all")
 async def test_all_clusters():
-    loop   = get_event_loop()
+    loop   = get_running_loop()
     result = await loop.run_in_executor(None, fetch_all_clusters, {"limit": 5})
     return {
         "total":           result["total"],

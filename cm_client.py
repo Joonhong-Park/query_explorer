@@ -1,5 +1,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -11,13 +13,55 @@ logger = logging.getLogger(__name__)
 requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 
-def fetch_queries(cluster: dict, params: dict) -> dict:
+def build_filter(
+    user: Optional[str] = None,
+    table: Optional[str] = None,
+    database: Optional[str] = None,
+    query_state: Optional[str] = None,
+) -> str:
     """
-    단일 클러스터에서 impalaQueries API를 호출합니다.
+    CM impalaQueries filter 표현식 조립.
 
-    Returns:
-        {"cluster": str, "queries": list, "error": str|None}
+    CM 필터 문법 예시:
+        user = "admin"
+        database = "mydb"
+        statement rlike "(?i).*table_name.*"
+        queryState = "FINISHED"
     """
+    parts = []
+
+    if user:
+        parts.append(f'user = "{user}"')
+    if table:
+        parts.append(f'statement rlike "(?i).*{table}.*"')
+    if database:
+        parts.append(f'database = "{database}"')
+    if query_state:
+        parts.append(f'queryState = "{query_state}"')
+
+    return " AND ".join(parts)
+
+
+def resolve_time_range(
+    hours: Optional[int] = None,
+    from_time: Optional[str] = None,
+    to_time: Optional[str] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    시간 범위를 ISO8601 문자열로 반환.
+    hours가 있으면 최근 N시간, 없으면 from_time/to_time 그대로 사용.
+    둘 다 없으면 최근 24시간 기본값.
+    """
+    if from_time and to_time:
+        return from_time, to_time
+
+    now = datetime.now(timezone.utc)
+    h   = hours if hours else 24
+    return (now - timedelta(hours=h)).isoformat(), now.isoformat()
+
+
+def fetch_queries(cluster: dict, params: dict) -> dict:
+    """단일 클러스터에서 impalaQueries API를 호출합니다."""
     url = (
         f"https://{cluster['host']}:{cluster['port']}"
         f"/api/{cluster['api_version']}"
@@ -52,15 +96,7 @@ def fetch_queries(cluster: dict, params: dict) -> dict:
 
 
 def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
-    """
-    전체(또는 선택된) 클러스터에서 병렬로 쿼리를 조회합니다.
-
-    Returns:
-        {
-            "queries": [...startTime 내림차순 정렬...],
-            "cluster_results": [{"cluster", "count", "error"}, ...],
-        }
-    """
+    """전체(또는 선택된) 클러스터에서 병렬로 쿼리를 조회합니다."""
     targets = CM_CLUSTERS
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]

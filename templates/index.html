@@ -93,8 +93,7 @@
   .c-dur       { text-align: right; white-space: nowrap; }
   .c-rows      { text-align: right; white-space: nowrap; color: #888; font-size: 12px; }
   .c-time      { white-space: nowrap; color: #888; }
-  .c-qstatus   { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .c-attr-qs   { font-family: monospace; font-size: 11px; color: #ef9a9a; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-qstatus   { font-family: monospace; font-size: 11px; color: #ef9a9a; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .c-stmt { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stmt-text {
@@ -235,7 +234,6 @@ const COLS = [
   { key: 'startTime',        label: '시작시간',      cls: 'c-time',      sort: true  },
   { key: 'endTime',          label: '종료시간',      cls: 'c-time',      sort: true  },
   { key: 'queryStatus',      label: 'queryStatus',   cls: 'c-qstatus',   sort: false },
-  { key: '_attr_query_status', label: 'attr.query_status', cls: 'c-attr-qs', sort: false },
 ];
 
 window.onload = () => {
@@ -394,10 +392,9 @@ function renderTable(rows) {
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt          = q.statement               ?? '';
-    const errMsg        = q.queryStatus             ?? '';
+    const stmt          = q.statement                   ?? '';
+    const errMsg        = q.attributes?.query_status    ?? '';
     const connUser      = q.attributes?.connected_user  ?? '';
-    const attrQStatus   = q.attributes?.query_status    ?? '';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -407,10 +404,6 @@ function renderTable(rows) {
         </td>`;
       if (c.key === '_connected_user')
         return `<td class="c-conn-user">${esc(connUser)}</td>`;
-      if (c.key === '_attr_query_status') {
-        const v = esc(attrQStatus);
-        return `<td class="c-attr-qs" title="${v}">${v}</td>`;
-      }
       if (c.key === 'queryState')
         return `<td><span class="s s-${val}">${val}</span></td>`;
       if (c.key === 'durationMillis')
@@ -424,7 +417,7 @@ function renderTable(rows) {
           <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
         </td>`;
       if (c.key === 'queryStatus') {
-        const v = esc(String(val));
+        const v = esc(errMsg);
         return `<td class="c-qstatus" title="${v}">${v}</td>`;
       }
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
@@ -434,8 +427,7 @@ function renderTable(rows) {
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>
-          ${errMsg      ? `<div class="err-block">${esc(errMsg)}</div>`      : ''}
-          ${attrQStatus ? `<div class="err-block">${esc(attrQStatus)}</div>` : ''}
+          ${errMsg ? `<div class="err-block">${esc(errMsg)}</div>` : ''}
         </div>
       </td>
     </tr>`;

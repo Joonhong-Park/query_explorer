@@ -80,10 +80,12 @@
   tbody tr.data-row:hover { background: #1c2035; }
   tbody td { padding: 6px 12px; vertical-align: middle; }
 
-  .c-cluster { color: #7eb8f7; font-weight: 500; }
-  .c-user    { color: #ce93d8; }
-  .c-dur     { text-align: right; white-space: nowrap; }
-  .c-time    { white-space: nowrap; color: #888; }
+  .c-cluster  { color: #7eb8f7; font-weight: 500; }
+  .c-qid      { font-family: monospace; font-size: 11px; color: #666; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-user     { color: #ce93d8; }
+  .c-dur      { text-align: right; white-space: nowrap; }
+  .c-time     { white-space: nowrap; color: #888; }
+  .c-qstatus  { font-family: monospace; font-size: 11px; color: #aaa; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .c-stmt { max-width: 380px; }
   .c-stmt-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
@@ -98,14 +100,6 @@
     font-family: monospace; font-size: 12px; color: #ccc;
   }
 
-  /* 프로파일 링크 버튼 */
-  .profile-btn {
-    display: inline-block; padding: 2px 8px; font-size: 11px;
-    border: 1px solid #2e3148; border-radius: 3px;
-    color: #7eb8f7; text-decoration: none; white-space: nowrap;
-    background: #1a1d2e;
-  }
-  .profile-btn:hover { background: #1e2a4a; border-color: #7eb8f7; }
 
   .s { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
   .s-FINISHED  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
@@ -217,14 +211,15 @@ let _sortDir       = -1;
 let _activeCluster = '';
 
 const COLS = [
-  { key: '_cluster',       label: '클러스터', cls: 'c-cluster', sort: true  },
-  { key: 'user',           label: '사용자',   cls: 'c-user',    sort: true  },
-  { key: 'queryState',     label: '상태',     cls: '',          sort: true  },
-  { key: 'statement',      label: 'Statement',cls: 'c-stmt',    sort: false },
-  { key: 'durationMillis', label: '실행시간', cls: 'c-dur',     sort: true  },
-  { key: 'startTime',      label: '시작시간', cls: 'c-time',    sort: true  },
-  { key: 'endTime',        label: '종료시간', cls: 'c-time',    sort: true  },
-  { key: '_profile',       label: 'Profile',  cls: '',          sort: false },
+  { key: '_cluster',       label: '클러스터',   cls: 'c-cluster', sort: true  },
+  { key: 'queryId',        label: 'Query ID',   cls: 'c-qid',     sort: false },
+  { key: 'user',           label: '사용자',     cls: 'c-user',    sort: true  },
+  { key: 'queryState',     label: '상태',       cls: '',          sort: true  },
+  { key: 'statement',      label: 'Statement',  cls: 'c-stmt',    sort: false },
+  { key: 'durationMillis', label: '실행시간',   cls: 'c-dur',     sort: true  },
+  { key: 'startTime',      label: '시작시간',   cls: 'c-time',    sort: true  },
+  { key: 'endTime',        label: '종료시간',   cls: 'c-time',    sort: true  },
+  { key: 'queryStatus',    label: 'queryStatus',cls: 'c-qstatus', sort: false },
 ];
 
 window.onload = () => {
@@ -365,7 +360,7 @@ function renderTable(rows) {
 
   const tbody = rows.map((q, i) => {
     const stmt        = q.statement   ?? '';
-    const errMsg      = q.query_status ?? '';
+    const errMsg      = q.queryStatus ?? '';
     const isException = q.queryState  === 'EXCEPTION';
     const queryId     = q.queryId     ?? '';
     const cluster     = q._cluster    ?? '';
@@ -386,10 +381,8 @@ function renderTable(rows) {
             <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
           </div>
         </td>`;
-      if (c.key === '_profile')
-        return queryId
-          ? `<td><a class="profile-btn" href="/api/profile/${encodeURIComponent(cluster)}/${encodeURIComponent(queryId)}" target="_blank" title="Query Profile 열기">Profile ↗</a></td>`
-          : `<td><span style="color:#444;font-size:11px;">-</span></td>`;
+      if (c.key === 'queryStatus')
+        return `<td class="c-qstatus" title="${esc(String(val))}">${esc(String(val))}</td>`;
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 

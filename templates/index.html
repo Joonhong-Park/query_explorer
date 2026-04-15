@@ -180,11 +180,11 @@
     </div>
     <div class="fg">
       <label>시작 일시</label>
-      <input id="f-from" type="datetime-local">
+      <input id="f-from" type="datetime-local" oninput="clearPreset()">
     </div>
     <div class="fg">
       <label>종료 일시</label>
-      <input id="f-to" type="datetime-local">
+      <input id="f-to" type="datetime-local" oninput="clearPreset()">
     </div>
   </div>
   <div class="filter-row">
@@ -311,6 +311,10 @@ function updateTabSummary() {
   el.textContent = _activeCluster
     ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
     : `전체 ${_allRows.length}건`;
+}
+
+function clearPreset() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
 }
 
 function setPreset(hours, btn) {

@@ -35,14 +35,6 @@
   }
   .preset-btn:hover, .preset-btn.active { background: #3d5afe; color: #fff; border-color: #3d5afe; }
 
-  /* 클러스터 체크박스 */
-  .cluster-checks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
-  .cluster-checks label {
-    display: flex; align-items: center; gap: 4px;
-    color: #aaa; font-size: 12px; cursor: pointer;
-  }
-  .cluster-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
-
   /* 상태 체크박스 */
   .state-checks { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 2px; }
   .state-checks label { display: flex; align-items: center; gap: 3px; font-size: 12px; cursor: pointer; }
@@ -56,6 +48,19 @@
   .btn-secondary:hover { background: #363a52; }
   .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
 
+  /* ── 클러스터 탭 ── */
+  .cluster-tabs {
+    background: #0d0f16; border-bottom: 1px solid #2a2d3e;
+    padding: 0 20px; display: flex; gap: 0;
+  }
+  .cluster-tab {
+    padding: 8px 18px; font-size: 12px; font-weight: 500; color: #666;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    white-space: nowrap; transition: color .15s;
+  }
+  .cluster-tab:hover { color: #aaa; }
+  .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
+
   /* ── 상태 바 ── */
   .status-bar {
     background: #0d0f16; border-bottom: 1px solid #1e2130;
@@ -68,7 +73,7 @@
   .filter-tag { font-family: monospace; font-size: 11px; color: #ffa726; }
 
   /* ── 테이블 ── */
-  .table-wrap { overflow: auto; height: calc(100vh - 210px); }
+  .table-wrap { overflow: auto; height: calc(100vh - 225px); }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: #13161f; color: #888; text-align: left;
@@ -77,6 +82,8 @@
     cursor: pointer; user-select: none;
   }
   thead th:hover { color: #bbb; }
+  thead th.no-sort { cursor: default; }
+  thead th.no-sort:hover { color: #888; }
   .sort-asc::after  { content: ' ▲'; font-size: 10px; }
   .sort-desc::after { content: ' ▼'; font-size: 10px; }
 
@@ -86,10 +93,30 @@
 
   .c-cluster { color: #7eb8f7; font-weight: 500; }
   .c-user    { color: #ce93d8; }
-  .c-db      { color: #80cbc4; }
-  .c-stmt    { max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; color: #ccc; }
   .c-dur     { text-align: right; white-space: nowrap; }
   .c-time    { white-space: nowrap; color: #888; }
+
+  /* Statement 셀: 버튼 + 텍스트 한 줄 */
+  .c-stmt {
+    max-width: 420px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .c-stmt-inner {
+    display: flex; align-items: center; gap: 5px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .toggle-btn {
+    flex-shrink: 0;
+    background: none; border: 1px solid #2e3148; color: #666;
+    cursor: pointer; font-size: 10px; padding: 1px 5px;
+    border-radius: 3px; line-height: 1.4;
+  }
+  .toggle-btn:hover { color: #aaa; border-color: #5b7fe0; }
+  .toggle-btn.open  { color: #7eb8f7; border-color: #7eb8f7; }
+  .stmt-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: monospace; font-size: 12px; color: #ccc;
+  }
 
   .s { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
   .s-FINISHED  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
@@ -97,47 +124,49 @@
   .s-RUNNING   { background: #0d47a166; color: #90caf9; border: 1px solid #1565c0; }
   .s-QUEUED    { background: #e65100aa; color: #ffcc02; border: 1px solid #e65100; }
 
-  .empty   { text-align: center; padding: 60px; color: #555; }
-  .loading { text-align: center; padding: 60px; color: #7eb8f7; }
-
-  /* ── 쿼리 펼치기 ── */
-  .toggle-btn {
-    background: none; border: none; color: #666; cursor: pointer;
-    font-size: 11px; padding: 2px 4px; border-radius: 3px; line-height: 1;
-  }
-  .toggle-btn:hover { color: #aaa; background: #2a2d3e; }
-  .toggle-btn.open  { color: #7eb8f7; }
-  tr.sql-row td {
+  /* ── 펼침 영역 ── */
+  tr.detail-row td {
     background: #0d0f16; padding: 0;
     border-bottom: 2px solid #2a2d3e;
   }
+  .detail-wrap { padding: 10px 16px; }
   .sql-block {
     font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
     color: #a8d8a8; white-space: pre-wrap; word-break: break-all;
-    padding: 10px 16px 10px 40px; line-height: 1.6;
-    max-height: 300px; overflow-y: auto;
+    line-height: 1.6; max-height: 260px; overflow-y: auto;
+    background: #080a0f; border: 1px solid #1e2130;
+    border-radius: 4px; padding: 10px 12px;
   }
+  .err-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #ef5350; margin: 8px 0 4px;
+  }
+  .err-block {
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    color: #ef9a9a; white-space: pre-wrap; word-break: break-all;
+    line-height: 1.5; max-height: 160px; overflow-y: auto;
+    background: #1a0a0a; border: 1px solid #c6282866;
+    border-radius: 4px; padding: 10px 12px;
+  }
+
+  .empty   { text-align: center; padding: 60px; color: #555; }
+  .loading { text-align: center; padding: 60px; color: #7eb8f7; }
 </style>
 </head>
 <body>
 
 <header><h1>⚡ Query Explorer</h1></header>
 
+<!-- 필터 패널 -->
 <div class="filters">
-
-  <!-- 사용자 -->
   <div class="fg">
     <label>User</label>
     <input id="f-user" type="text" placeholder="username">
   </div>
-
-  <!-- 키워드 (statement 검색) -->
   <div class="fg">
     <label>Keyword</label>
     <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
   </div>
-
-  <!-- 상태 -->
   <div class="fg">
     <label>상태</label>
     <div class="state-checks">
@@ -147,20 +176,16 @@
       <label><input type="checkbox" class="f-state" value="QUEUED"    checked> <span class="s s-QUEUED">QUEUED</span></label>
     </div>
   </div>
-
-  <!-- 시간 범위 프리셋 -->
   <div class="fg">
     <label>빠른 범위</label>
     <div class="presets">
-      <button class="preset-btn" onclick="setPreset(1)">1h</button>
-      <button class="preset-btn" onclick="setPreset(6)">6h</button>
-      <button class="preset-btn active" onclick="setPreset(24)">24h</button>
-      <button class="preset-btn" onclick="setPreset(72)">3d</button>
-      <button class="preset-btn" onclick="setPreset(168)">7d</button>
+      <button class="preset-btn" onclick="setPreset(1,this)">1h</button>
+      <button class="preset-btn" onclick="setPreset(6,this)">6h</button>
+      <button class="preset-btn active" onclick="setPreset(24,this)">24h</button>
+      <button class="preset-btn" onclick="setPreset(72,this)">3d</button>
+      <button class="preset-btn" onclick="setPreset(168,this)">7d</button>
     </div>
   </div>
-
-  <!-- 시작/종료 시각 (캘린더) -->
   <div class="fg">
     <label>시작 일시</label>
     <input id="f-from" type="datetime-local">
@@ -169,8 +194,6 @@
     <label>종료 일시</label>
     <input id="f-to" type="datetime-local">
   </div>
-
-  <!-- 결과 수 -->
   <div class="fg">
     <label>결과 수</label>
     <select id="f-limit">
@@ -180,8 +203,6 @@
       <option value="500">500건</option>
     </select>
   </div>
-
-  <!-- 검색/초기화 버튼 -->
   <div class="fg" style="justify-content:flex-end">
     <label>&nbsp;</label>
     <div style="display:flex;gap:6px;">
@@ -189,44 +210,42 @@
       <button class="btn btn-secondary" onclick="reset()">초기화</button>
     </div>
   </div>
-
-  <!-- 클러스터 선택 (전체 너비) -->
-  <div class="fg" style="width:100%">
-    <label>클러스터</label>
-    <div class="cluster-checks" id="cluster-checks">
-      <span style="color:#555">로딩 중...</span>
-    </div>
-  </div>
-
 </div>
 
+<!-- 클러스터 탭 -->
+<div class="cluster-tabs" id="cluster-tabs">
+  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">전체</div>
+</div>
+
+<!-- 상태 바 -->
 <div class="status-bar" id="status-bar">
   <span style="color:#555">검색 조건을 입력하고 검색하세요</span>
 </div>
 
+<!-- 테이블 -->
 <div class="table-wrap" id="table-wrap">
   <div class="empty">검색 조건을 입력하고 검색하세요</div>
 </div>
 
 <script>
 // ── 상태 ──────────────────────────────────────────────────────────────────────
-let _rows    = [];
-let _sortCol = 'startTime';
-let _sortDir = -1;  // -1: 내림차순, 1: 오름차순
+let _rows        = [];
+let _sortCol     = 'startTime';
+let _sortDir     = -1;
+let _activeCluster = '';   // '' = 전체
 
 const COLS = [
-  { key: '_cluster',      label: '클러스터',  cls: 'c-cluster' },
-  { key: 'user',          label: '사용자',    cls: 'c-user'    },
-  { key: 'database',      label: 'DB',        cls: 'c-db'      },
-  { key: 'queryState',    label: '상태',      cls: ''          },
-  { key: 'statement',     label: 'Statement', cls: 'c-stmt'    },
-  { key: 'durationMillis',label: '실행시간',  cls: 'c-dur'     },
-  { key: 'startTime',     label: '시작시간',  cls: 'c-time'    },
+  { key: '_cluster',       label: '클러스터', cls: 'c-cluster', sort: true  },
+  { key: 'user',           label: '사용자',   cls: 'c-user',    sort: true  },
+  { key: 'queryState',     label: '상태',     cls: '',          sort: true  },
+  { key: 'statement',      label: 'Statement',cls: 'c-stmt',    sort: false },
+  { key: 'durationMillis', label: '실행시간', cls: 'c-dur',     sort: true  },
+  { key: 'startTime',      label: '시작시간', cls: 'c-time',    sort: true  },
 ];
 
 // ── 초기화 ────────────────────────────────────────────────────────────────────
 window.onload = () => {
-  setPreset(24);
+  setPreset(24, document.querySelector('.preset-btn.active'));
   loadClusters();
 };
 
@@ -234,37 +253,32 @@ async function loadClusters() {
   try {
     const res  = await fetch('/api/clusters');
     const data = await res.json();
-    const box  = document.getElementById('cluster-checks');
-    box.innerHTML = '';
-
-    // 전체 선택/해제 토글
-    const allLabel = document.createElement('label');
-    allLabel.innerHTML = `<input type="checkbox" id="chk-all" checked onchange="toggleAllClusters(this.checked)"> 전체`;
-    box.appendChild(allLabel);
-
+    const tabs = document.getElementById('cluster-tabs');
     data.clusters.forEach(c => {
-      const label = document.createElement('label');
-      label.innerHTML = `<input type="checkbox" class="chk-cluster" value="${c}" checked> ${c}`;
-      box.appendChild(label);
+      const div = document.createElement('div');
+      div.className   = 'cluster-tab';
+      div.dataset.cluster = c;
+      div.textContent = c;
+      div.onclick     = () => selectTab(div);
+      tabs.appendChild(div);
     });
-  } catch(e) {
-    document.getElementById('cluster-checks').innerHTML = '<span style="color:#ef5350">클러스터 목록 로드 실패</span>';
-  }
+  } catch(e) {}
 }
 
-function toggleAllClusters(checked) {
-  document.querySelectorAll('.chk-cluster').forEach(chk => chk.checked = checked);
+function selectTab(el) {
+  document.querySelectorAll('.cluster-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  _activeCluster = el.dataset.cluster;
 }
 
 // ── 프리셋 ────────────────────────────────────────────────────────────────────
-function setPreset(hours) {
+function setPreset(hours, btn) {
   const now  = new Date();
   const from = new Date(now - hours * 3600000);
   document.getElementById('f-from').value = toLocalDT(from);
   document.getElementById('f-to').value   = toLocalDT(now);
-
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (btn) btn.classList.add('active');
 }
 
 function toLocalDT(d) {
@@ -285,25 +299,18 @@ async function search() {
   if (v('f-user'))    params.set('user',    v('f-user'));
   if (v('f-keyword')) params.set('keyword', v('f-keyword'));
 
-  // 상태 — 체크된 것만 (전체 체크면 파라미터 생략)
   const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
   const allStates     = [...document.querySelectorAll('.f-state')].map(c => c.value);
   if (checkedStates.length > 0 && checkedStates.length < allStates.length) {
     params.set('query_state', checkedStates.join(','));
   }
 
-  // 시간
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
 
   params.set('limit', v('f-limit') || '100');
 
-  // 클러스터
-  const checkedClusters = [...document.querySelectorAll('.chk-cluster:checked')].map(c => c.value);
-  const allClusters     = [...document.querySelectorAll('.chk-cluster')].map(c => c.value);
-  if (checkedClusters.length > 0 && checkedClusters.length < allClusters.length) {
-    params.set('clusters', checkedClusters.join(','));
-  }
+  if (_activeCluster) params.set('clusters', _activeCluster);
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
@@ -320,13 +327,10 @@ async function search() {
 }
 
 function reset() {
-  ['f-user','f-keyword'].forEach(id => document.getElementById(id).value = '');
+  ['f-user','f-keyword','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
-  document.querySelectorAll('.chk-cluster').forEach(c => c.checked = true);
-  const chkAll = document.getElementById('chk-all');
-  if (chkAll) chkAll.checked = true;
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  setPreset(24);
+  setPreset(24, document.querySelectorAll('.preset-btn')[2]);
+  selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
   document.getElementById('status-bar').innerHTML = '<span style="color:#555">검색 조건을 입력하고 검색하세요</span>';
   document.getElementById('table-wrap').innerHTML  = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
   _rows = [];
@@ -336,7 +340,6 @@ function reset() {
 function sortBy(col) {
   if (_sortCol === col) _sortDir *= -1;
   else { _sortCol = col; _sortDir = -1; }
-
   _rows.sort((a, b) => {
     const va = a[col] ?? '', vb = b[col] ?? '';
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * _sortDir;
@@ -364,46 +367,59 @@ function renderTable(rows) {
     return;
   }
 
-  const colCount = COLS.length + 1; // toggle 버튼 열 포함
-
-  const thead = '<thead><tr><th></th>' + COLS.map(c => {
+  const colCount = COLS.length;
+  const thead = '<thead><tr>' + COLS.map(c => {
+    if (!c.sort) return `<th class="no-sort">${c.label}</th>`;
     const cls = _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
     return `<th class="${cls}" onclick="sortBy('${c.key}')">${c.label}</th>`;
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt = q.statement ?? '';
+    const stmt    = q.statement    ?? '';
+    const errMsg  = q.errorMessage ?? q.error ?? '';
+    const isError = q.queryState === 'EXCEPTION';
+
     const cells = COLS.map(c => {
-      let val = q[c.key] ?? '';
-      if (c.key === 'queryState')     return `<td><span class="s s-${val}">${val}</span></td>`;
-      if (c.key === 'durationMillis') return `<td class="c-dur">${fmtDur(val)}</td>`;
-      if (c.key === 'startTime')      return `<td class="c-time">${fmtTime(val)}</td>`;
-      if (c.key === 'statement')      return `<td class="c-stmt" title="${esc(val)}">${esc(val)}</td>`;
+      const val = q[c.key] ?? '';
+      if (c.key === 'queryState')
+        return `<td><span class="s s-${val}">${val}</span></td>`;
+      if (c.key === 'durationMillis')
+        return `<td class="c-dur">${fmtDur(val)}</td>`;
+      if (c.key === 'startTime')
+        return `<td class="c-time">${fmtTime(val)}</td>`;
+      if (c.key === 'statement')
+        return `<td class="c-stmt">
+          <div class="c-stmt-inner">
+            <button class="toggle-btn" id="tbtn-${i}" onclick="toggleDetail(${i})" title="펼치기">▶</button>
+            <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
+          </div>
+        </td>`;
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
-    const mainRow = `<tr>
-      <td style="width:28px;text-align:center;">
-        <button class="toggle-btn" id="tbtn-${i}" onclick="toggleSql(${i})" title="쿼리 펼치기">▶</button>
-      </td>
-      ${cells}
-    </tr>`;
+    const errSection = isError && errMsg
+      ? `<div class="err-label">Error Message</div>
+         <div class="err-block">${esc(errMsg)}</div>`
+      : '';
 
-    const sqlRow = `<tr class="sql-row" id="sqlrow-${i}" style="display:none;">
+    const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
       <td colspan="${colCount}">
-        <div class="sql-block">${esc(stmt)}</div>
+        <div class="detail-wrap">
+          <div class="sql-block">${esc(stmt)}</div>
+          ${errSection}
+        </div>
       </td>
     </tr>`;
 
-    return mainRow + sqlRow;
+    return `<tr>${cells}</tr>${detailRow}`;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
 }
 
-function toggleSql(i) {
-  const row = document.getElementById(`sqlrow-${i}`);
+function toggleDetail(i) {
+  const row = document.getElementById(`drow-${i}`);
   const btn = document.getElementById(`tbtn-${i}`);
   const open = row.style.display === 'none';
   row.style.display = open ? '' : 'none';
@@ -426,9 +442,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') search();
-});
+document.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
 </script>
 </body>
 </html>

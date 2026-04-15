@@ -81,6 +81,7 @@
   tbody tr.data-row:hover { background: #1c2035; }
   tbody td { padding: 6px 12px; vertical-align: middle; }
 
+  .c-toggle   { width: 32px; text-align: center; padding: 0 4px !important; }
   .c-cluster  { color: #7eb8f7; font-weight: 500; }
   .c-qid      { font-family: monospace; font-size: 11px; color: #666; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .c-user     { color: #ce93d8; }
@@ -216,6 +217,7 @@ let _sortDir       = -1;
 let _activeCluster = '';
 
 const COLS = [
+  { key: '_toggle',        label: '',           cls: 'c-toggle',  sort: false },
   { key: '_cluster',       label: '클러스터',   cls: 'c-cluster', sort: true  },
   { key: 'queryId',        label: 'Query ID',   cls: 'c-qid',     sort: false },
   { key: 'user',           label: '사용자',     cls: 'c-user',    sort: true  },
@@ -372,6 +374,10 @@ function renderTable(rows) {
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
+      if (c.key === '_toggle')
+        return `<td class="c-toggle">
+          <button class="toggle-btn" id="tbtn-${i}" onclick="toggleDetail(${i})" title="펼치기">▶</button>
+        </td>`;
       if (c.key === 'queryState')
         return `<td><span class="s s-${val}">${val}</span></td>`;
       if (c.key === 'durationMillis')
@@ -381,8 +387,6 @@ function renderTable(rows) {
       if (c.key === 'statement')
         return `<td class="c-stmt">
           <div class="c-stmt-inner">
-            <button class="toggle-btn" id="tbtn-${i}"
-              onclick="toggleDetail(${i})" title="SQL 펼치기">▶</button>
             <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
           </div>
         </td>`;
@@ -395,20 +399,12 @@ function renderTable(rows) {
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>
+          ${errMsg ? `<div class="err-block" style="margin-top:8px;">${esc(errMsg)}</div>` : ''}
         </div>
       </td>
     </tr>`;
 
-    // EXCEPTION이면 queryStatus 내용을 항상 표시
-    const errorRow = isException
-      ? `<tr class="error-row">
-          <td colspan="${colCount}">
-            <div class="err-block">${esc(errMsg || '(오류 메세지 없음)')}</div>
-          </td>
-        </tr>`
-      : '';
-
-    return `<tr class="data-row">${cells}</tr>${detailRow}${errorRow}`;
+    return `<tr class="data-row">${cells}</tr>${detailRow}`;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =

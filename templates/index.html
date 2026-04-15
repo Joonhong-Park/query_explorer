@@ -365,7 +365,7 @@ function renderTable(rows) {
 
   const tbody = rows.map((q, i) => {
     const stmt        = q.statement   ?? '';
-    const errMsg      = q.queryStatus ?? '';
+    const errMsg      = q.query_status ?? '';
     const isException = q.queryState  === 'EXCEPTION';
     const queryId     = q.queryId     ?? '';
     const cluster     = q._cluster    ?? '';

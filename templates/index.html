@@ -57,10 +57,7 @@
   }
   .cluster-tab:hover { color: #aaa; }
   .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
-  .tab-count {
-    font-size: 10px; background: #1e2130; color: #666;
-    padding: 1px 6px; border-radius: 8px; font-weight: 400;
-  }
+  .tab-count { font-size: 10px; background: #1e2130; color: #666; padding: 1px 6px; border-radius: 8px; }
   .cluster-tab.active .tab-count { background: #1a2a4a; color: #7eb8f7; }
 
   /* ── 상태 바 ── */
@@ -89,8 +86,8 @@
   .sort-asc::after  { content: ' ▲'; font-size: 10px; }
   .sort-desc::after { content: ' ▼'; font-size: 10px; }
 
-  tbody tr { border-bottom: 1px solid #1a1d2e; }
-  tbody tr:hover { background: #1a1d2e; }
+  tbody tr.data-row { border-bottom: 1px solid #1a1d2e; cursor: pointer; }
+  tbody tr.data-row:hover { background: #1c2035; }
   tbody td { padding: 6px 12px; }
 
   .c-cluster { color: #7eb8f7; font-weight: 500; }
@@ -98,7 +95,7 @@
   .c-dur     { text-align: right; white-space: nowrap; }
   .c-time    { white-space: nowrap; color: #888; }
 
-  .c-stmt { max-width: 420px; }
+  .c-stmt { max-width: 380px; }
   .c-stmt-inner { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; }
   .toggle-btn {
     flex-shrink: 0; background: none; border: 1px solid #2e3148; color: #666;
@@ -117,7 +114,7 @@
   .s-RUNNING   { background: #0d47a166; color: #90caf9; border: 1px solid #1565c0; }
   .s-QUEUED    { background: #e65100aa; color: #ffcc02; border: 1px solid #e65100; }
 
-  /* ── 펼침/에러 영역 ── */
+  /* ── SQL 펼침 / 에러 행 ── */
   tr.detail-row td { background: #0d0f16; padding: 0; border-bottom: 2px solid #2a2d3e; }
   .detail-wrap { padding: 10px 16px; }
   .sql-block {
@@ -126,19 +123,63 @@
     max-height: 260px; overflow-y: auto;
     background: #080a0f; border: 1px solid #1e2130; border-radius: 4px; padding: 10px 12px;
   }
-  .err-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #ef5350; margin: 8px 0 4px; }
+  tr.error-row td { background: #120808; padding: 0; border-bottom: 1px solid #2a1515; }
   .err-block {
     font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
     color: #ef9a9a; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
-    max-height: 160px; overflow-y: auto;
-    background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px; padding: 10px 12px;
+    max-height: 120px; overflow-y: auto;
+    background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px;
+    padding: 8px 12px; margin: 6px 16px;
   }
-  /* 에러 전용 행 (펼침 없이 항상 표시) */
-  tr.error-row td { background: #120808; padding: 0; border-bottom: 1px solid #2a1515; }
-  .error-row .err-block { margin: 8px 16px; max-height: 120px; }
 
   .empty   { text-align: center; padding: 60px; color: #555; }
   .loading { text-align: center; padding: 60px; color: #7eb8f7; }
+
+  /* ── 상세보기 모달 ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: #000b; z-index: 200;
+    align-items: flex-start; justify-content: center; padding-top: 60px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #1a1d2e; border: 1px solid #2e3148; border-radius: 8px;
+    width: 860px; max-width: 95vw; max-height: 80vh;
+    display: flex; flex-direction: column; box-shadow: 0 20px 60px #0008;
+  }
+  .modal-header {
+    padding: 14px 20px; border-bottom: 1px solid #2e3148;
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+  }
+  .modal-header h2 { font-size: 13px; color: #7eb8f7; font-weight: 600; }
+  .modal-close { background: none; border: none; color: #555; font-size: 18px; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: #fff; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+
+  .detail-grid {
+    display: grid; grid-template-columns: 130px 1fr 130px 1fr;
+    gap: 6px 16px; margin-bottom: 16px;
+  }
+  .dg-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; }
+  .dg-value { font-size: 12px; color: #ddd; word-break: break-all; display: flex; align-items: center; }
+  .dg-full  { grid-column: 1 / -1; }
+
+  .modal-section-title {
+    font-size: 10px; color: #666; text-transform: uppercase;
+    letter-spacing: 0.5px; margin: 14px 0 6px; border-top: 1px solid #2a2d3e; padding-top: 12px;
+  }
+  .modal-sql {
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    color: #a8d8a8; white-space: pre-wrap; word-break: break-all; line-height: 1.6;
+    background: #080a0f; border: 1px solid #1e2130; border-radius: 4px;
+    padding: 12px; max-height: 300px; overflow-y: auto;
+  }
+  .modal-err {
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    color: #ef9a9a; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+    background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px;
+    padding: 12px; max-height: 200px; overflow-y: auto;
+  }
 </style>
 </head>
 <body>
@@ -184,10 +225,10 @@
   <div class="fg">
     <label>결과 수</label>
     <select id="f-limit">
-      <option value="50">50건</option>
-      <option value="100" selected>100건</option>
-      <option value="200">200건</option>
+      <option value="100">100건</option>
+      <option value="300">300건</option>
       <option value="500">500건</option>
+      <option value="1000" selected>1000건</option>
     </select>
   </div>
   <div class="fg" style="justify-content:flex-end">
@@ -199,7 +240,6 @@
   </div>
 </div>
 
-<!-- 클러스터 탭 -->
 <div class="cluster-tabs" id="cluster-tabs">
   <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
     전체 <span class="tab-count" id="tab-count-all">0</span>
@@ -214,11 +254,22 @@
   <div class="empty">검색 조건을 입력하고 검색하세요</div>
 </div>
 
+<!-- 상세보기 모달 -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="onBackdropClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Query Detail</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
 <script>
-let _allRows     = [];   // 전체 조회 결과 (탭 필터링 기준)
-let _rows        = [];   // 현재 표시 중인 결과
-let _sortCol     = 'startTime';
-let _sortDir     = -1;
+let _allRows       = [];
+let _rows          = [];
+let _sortCol       = 'startTime';
+let _sortDir       = -1;
 let _activeCluster = '';
 
 const COLS = [
@@ -228,6 +279,7 @@ const COLS = [
   { key: 'statement',      label: 'Statement',cls: 'c-stmt',    sort: false },
   { key: 'durationMillis', label: '실행시간', cls: 'c-dur',     sort: true  },
   { key: 'startTime',      label: '시작시간', cls: 'c-time',    sort: true  },
+  { key: 'endTime',        label: '종료시간', cls: 'c-time',    sort: true  },
 ];
 
 // ── 초기화 ────────────────────────────────────────────────────────────────────
@@ -243,16 +295,15 @@ async function loadClusters() {
     const tabs = document.getElementById('cluster-tabs');
     data.clusters.forEach(c => {
       const div = document.createElement('div');
-      div.className        = 'cluster-tab';
-      div.dataset.cluster  = c;
-      div.innerHTML        = `${c} <span class="tab-count" id="tab-count-${c}">0</span>`;
-      div.onclick          = () => selectTab(div);
+      div.className       = 'cluster-tab';
+      div.dataset.cluster = c;
+      div.innerHTML       = `${c} <span class="tab-count" id="tab-count-${c}">0</span>`;
+      div.onclick         = () => selectTab(div);
       tabs.appendChild(div);
     });
   } catch(e) {}
 }
 
-// 탭 클릭 → 클라이언트사이드 즉시 필터
 function selectTab(el) {
   document.querySelectorAll('.cluster-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
@@ -269,11 +320,9 @@ function applyTabFilter() {
 }
 
 function updateTabCounts() {
-  // 전체 카운트
   document.getElementById('tab-count-all').textContent = _allRows.length;
-  // 클러스터별
   document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
-    const c = tab.dataset.cluster;
+    const c  = tab.dataset.cluster;
     if (!c) return;
     const el = document.getElementById(`tab-count-${c}`);
     if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
@@ -298,8 +347,7 @@ function toLocalDT(d) {
 // ── 검색 ─────────────────────────────────────────────────────────────────────
 async function search() {
   const btn = document.getElementById('btn-search');
-  btn.disabled = true;
-  btn.textContent = '조회 중...';
+  btn.disabled = true; btn.textContent = '조회 중...';
   document.getElementById('table-wrap').innerHTML = '<div class="loading">⏳ 클러스터 조회 중...</div>';
 
   const v = id => document.getElementById(id).value.trim();
@@ -310,26 +358,24 @@ async function search() {
 
   const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
   const allStates     = [...document.querySelectorAll('.f-state')].map(c => c.value);
-  if (checkedStates.length > 0 && checkedStates.length < allStates.length) {
+  if (checkedStates.length > 0 && checkedStates.length < allStates.length)
     params.set('query_state', checkedStates.join(','));
-  }
 
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
-  params.set('limit', v('f-limit') || '100');
+  params.set('limit', v('f-limit') || '1000');
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
     _allRows = data.queries || [];
     updateTabCounts();
-    applyTabFilter();         // 현재 활성 탭 기준 필터 적용
+    applyTabFilter();
     renderStatusBar(data);
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   } finally {
-    btn.disabled = false;
-    btn.textContent = '검색';
+    btn.disabled = false; btn.textContent = '검색';
   }
 }
 
@@ -371,11 +417,9 @@ function renderStatusBar(data) {
 
 function updateStatusSummary() {
   const el = document.getElementById('status-summary');
-  if (el) {
-    el.textContent = _activeCluster
-      ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
-      : `총 ${_allRows.length}건`;
-  }
+  if (el) el.textContent = _activeCluster
+    ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
+    : `총 ${_allRows.length}건`;
 }
 
 function renderTable(rows) {
@@ -392,9 +436,9 @@ function renderTable(rows) {
   }).join('') + '</tr></thead>';
 
   const tbody = rows.map((q, i) => {
-    const stmt       = q.statement   ?? '';
-    const errMsg     = q.queryStatus ?? '';   // CM API: queryStatus에 에러 메시지 포함
-    const isException = q.queryState === 'EXCEPTION';
+    const stmt        = q.statement   ?? '';
+    const errMsg      = q.queryStatus ?? '';
+    const isException = q.queryState  === 'EXCEPTION';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -402,19 +446,19 @@ function renderTable(rows) {
         return `<td><span class="s s-${val}">${val}</span></td>`;
       if (c.key === 'durationMillis')
         return `<td class="c-dur">${fmtDur(val)}</td>`;
-      if (c.key === 'startTime')
+      if (c.key === 'startTime' || c.key === 'endTime')
         return `<td class="c-time">${fmtTime(val)}</td>`;
       if (c.key === 'statement')
         return `<td class="c-stmt">
           <div class="c-stmt-inner">
-            <button class="toggle-btn" id="tbtn-${i}" onclick="toggleDetail(${i})" title="펼치기">▶</button>
+            <button class="toggle-btn" id="tbtn-${i}"
+              onclick="event.stopPropagation(); toggleDetail(${i})" title="SQL 펼치기">▶</button>
             <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
           </div>
         </td>`;
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
-    // SQL 펼침 행
     const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
       <td colspan="${colCount}">
         <div class="detail-wrap">
@@ -423,16 +467,15 @@ function renderTable(rows) {
       </td>
     </tr>`;
 
-    // 에러 로그 행 (EXCEPTION + queryStatus 있으면 항상 표시)
     const errorRow = isException && errMsg
       ? `<tr class="error-row">
           <td colspan="${colCount}">
-            <div class="err-block" style="margin:6px 16px;">${esc(errMsg)}</div>
+            <div class="err-block">${esc(errMsg)}</div>
           </td>
         </tr>`
       : '';
 
-    return `<tr>${cells}</tr>${detailRow}${errorRow}`;
+    return `<tr class="data-row" onclick="openDetail(${i})">${cells}</tr>${detailRow}${errorRow}`;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =
@@ -448,6 +491,57 @@ function toggleDetail(i) {
   btn.classList.toggle('open', open);
 }
 
+// ── 상세보기 모달 ─────────────────────────────────────────────────────────────
+function openDetail(i) {
+  const q = _rows[i];
+  if (!q) return;
+
+  document.getElementById('modal-title').textContent =
+    `Query Detail — ${q._cluster ?? ''} / ${q.user ?? ''}`;
+
+  const fields = [
+    ['Query ID',   q.queryId        ?? '-'],
+    ['클러스터',   q._cluster       ?? '-'],
+    ['사용자',     q.user           ?? '-'],
+    ['상태',       `<span class="s s-${q.queryState}">${q.queryState ?? '-'}</span>`],
+    ['Database',   q.database       ?? '-'],
+    ['시작 시간',  fmtTime(q.startTime)],
+    ['종료 시간',  fmtTime(q.endTime)],
+    ['실행 시간',  fmtDur(q.durationMillis)],
+    ['메모리',     fmtBytes(q.memoryAggregate)],
+    ['읽은 행',    q.rowsProduced    != null ? q.rowsProduced.toLocaleString()    : '-'],
+    ['HDFS 읽기',  fmtBytes(q.hdfsBytesRead)],
+    ['Coordinator',q.coordinator?.hostId ?? '-'],
+  ];
+
+  const grid = fields.map(([l, v]) =>
+    `<div class="dg-label">${l}</div><div class="dg-value">${v}</div>`
+  ).join('');
+
+  const sqlSection = q.statement
+    ? `<div class="modal-section-title">SQL Statement</div>
+       <div class="modal-sql">${esc(q.statement)}</div>`
+    : '';
+
+  const errSection = q.queryState === 'EXCEPTION' && q.queryStatus
+    ? `<div class="modal-section-title" style="color:#ef5350">Error Message</div>
+       <div class="modal-err">${esc(q.queryStatus)}</div>`
+    : '';
+
+  document.getElementById('modal-body').innerHTML =
+    `<div class="detail-grid">${grid}</div>${sqlSection}${errSection}`;
+
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+function onBackdropClick(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+}
+
 // ── 유틸 ─────────────────────────────────────────────────────────────────────
 function fmtDur(ms) {
   if (ms == null || ms === '') return '-';
@@ -459,11 +553,21 @@ function fmtTime(iso) {
   if (!iso) return '-';
   return new Date(iso).toLocaleString('ko-KR', { hour12: false });
 }
+function fmtBytes(b) {
+  if (b == null) return '-';
+  if (b < 1024)        return b + ' B';
+  if (b < 1048576)     return (b / 1024).toFixed(1) + ' KB';
+  if (b < 1073741824)  return (b / 1048576).toFixed(1) + ' MB';
+  return (b / 1073741824).toFixed(2) + ' GB';
+}
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  else if (e.key === 'Enter' && !document.getElementById('modal-backdrop').classList.contains('open')) search();
+});
 </script>
 </body>
 </html>

@@ -86,9 +86,9 @@
   .sort-asc::after  { content: ' ▲'; font-size: 10px; }
   .sort-desc::after { content: ' ▼'; font-size: 10px; }
 
-  tbody tr.data-row { border-bottom: 1px solid #1a1d2e; cursor: pointer; }
+  tbody tr.data-row { border-bottom: 1px solid #1a1d2e; }
   tbody tr.data-row:hover { background: #1c2035; }
-  tbody td { padding: 6px 12px; }
+  tbody td { padding: 6px 12px; vertical-align: middle; }
 
   .c-cluster { color: #7eb8f7; font-weight: 500; }
   .c-user    { color: #ce93d8; }
@@ -107,6 +107,15 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-family: monospace; font-size: 12px; color: #ccc;
   }
+
+  /* 프로파일 링크 버튼 */
+  .profile-btn {
+    display: inline-block; padding: 2px 8px; font-size: 11px;
+    border: 1px solid #2e3148; border-radius: 3px;
+    color: #7eb8f7; text-decoration: none; white-space: nowrap;
+    background: #1a1d2e;
+  }
+  .profile-btn:hover { background: #1e2a4a; border-color: #7eb8f7; }
 
   .s { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
   .s-FINISHED  { background: #1b5e2066; color: #66bb6a; border: 1px solid #2e7d32; }
@@ -134,52 +143,6 @@
 
   .empty   { text-align: center; padding: 60px; color: #555; }
   .loading { text-align: center; padding: 60px; color: #7eb8f7; }
-
-  /* ── 상세보기 모달 ── */
-  .modal-backdrop {
-    display: none; position: fixed; inset: 0;
-    background: #000b; z-index: 200;
-    align-items: flex-start; justify-content: center; padding-top: 60px;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal {
-    background: #1a1d2e; border: 1px solid #2e3148; border-radius: 8px;
-    width: 860px; max-width: 95vw; max-height: 80vh;
-    display: flex; flex-direction: column; box-shadow: 0 20px 60px #0008;
-  }
-  .modal-header {
-    padding: 14px 20px; border-bottom: 1px solid #2e3148;
-    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-  }
-  .modal-header h2 { font-size: 13px; color: #7eb8f7; font-weight: 600; }
-  .modal-close { background: none; border: none; color: #555; font-size: 18px; cursor: pointer; line-height: 1; }
-  .modal-close:hover { color: #fff; }
-  .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
-
-  .detail-grid {
-    display: grid; grid-template-columns: 130px 1fr 130px 1fr;
-    gap: 6px 16px; margin-bottom: 16px;
-  }
-  .dg-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; }
-  .dg-value { font-size: 12px; color: #ddd; word-break: break-all; display: flex; align-items: center; }
-  .dg-full  { grid-column: 1 / -1; }
-
-  .modal-section-title {
-    font-size: 10px; color: #666; text-transform: uppercase;
-    letter-spacing: 0.5px; margin: 14px 0 6px; border-top: 1px solid #2a2d3e; padding-top: 12px;
-  }
-  .modal-sql {
-    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
-    color: #a8d8a8; white-space: pre-wrap; word-break: break-all; line-height: 1.6;
-    background: #080a0f; border: 1px solid #1e2130; border-radius: 4px;
-    padding: 12px; max-height: 300px; overflow-y: auto;
-  }
-  .modal-err {
-    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
-    color: #ef9a9a; white-space: pre-wrap; word-break: break-all; line-height: 1.5;
-    background: #1a0a0a; border: 1px solid #c6282866; border-radius: 4px;
-    padding: 12px; max-height: 200px; overflow-y: auto;
-  }
 </style>
 </head>
 <body>
@@ -254,17 +217,6 @@
   <div class="empty">검색 조건을 입력하고 검색하세요</div>
 </div>
 
-<!-- 상세보기 모달 -->
-<div class="modal-backdrop" id="modal-backdrop" onclick="onBackdropClick(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="modal-title">Query Detail</h2>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-  </div>
-</div>
-
 <script>
 let _allRows       = [];
 let _rows          = [];
@@ -280,9 +232,9 @@ const COLS = [
   { key: 'durationMillis', label: '실행시간', cls: 'c-dur',     sort: true  },
   { key: 'startTime',      label: '시작시간', cls: 'c-time',    sort: true  },
   { key: 'endTime',        label: '종료시간', cls: 'c-time',    sort: true  },
+  { key: '_profile',       label: 'Profile',  cls: '',          sort: false },
 ];
 
-// ── 초기화 ────────────────────────────────────────────────────────────────────
 window.onload = () => {
   setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
@@ -329,7 +281,6 @@ function updateTabCounts() {
   });
 }
 
-// ── 프리셋 ────────────────────────────────────────────────────────────────────
 function setPreset(hours, btn) {
   const now  = new Date();
   const from = new Date(now - hours * 3600000);
@@ -344,7 +295,6 @@ function toLocalDT(d) {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-// ── 검색 ─────────────────────────────────────────────────────────────────────
 async function search() {
   const btn = document.getElementById('btn-search');
   btn.disabled = true; btn.textContent = '조회 중...';
@@ -390,7 +340,6 @@ function reset() {
   updateTabCounts();
 }
 
-// ── 정렬 ─────────────────────────────────────────────────────────────────────
 function sortBy(col) {
   if (_sortCol === col) _sortDir *= -1;
   else { _sortCol = col; _sortDir = -1; }
@@ -402,7 +351,6 @@ function sortBy(col) {
   renderTable(_rows);
 }
 
-// ── 렌더링 ────────────────────────────────────────────────────────────────────
 function renderStatusBar(data) {
   const badges = (data.cluster_results || []).map(c => {
     const cls = c.error ? 'badge-err' : 'badge-ok';
@@ -439,6 +387,8 @@ function renderTable(rows) {
     const stmt        = q.statement   ?? '';
     const errMsg      = q.queryStatus ?? '';
     const isException = q.queryState  === 'EXCEPTION';
+    const queryId     = q.queryId     ?? '';
+    const cluster     = q._cluster    ?? '';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -452,10 +402,14 @@ function renderTable(rows) {
         return `<td class="c-stmt">
           <div class="c-stmt-inner">
             <button class="toggle-btn" id="tbtn-${i}"
-              onclick="event.stopPropagation(); toggleDetail(${i})" title="SQL 펼치기">▶</button>
+              onclick="toggleDetail(${i})" title="SQL 펼치기">▶</button>
             <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
           </div>
         </td>`;
+      if (c.key === '_profile')
+        return queryId
+          ? `<td><a class="profile-btn" href="/api/profile/${encodeURIComponent(cluster)}/${encodeURIComponent(queryId)}" target="_blank" title="Query Profile 열기">Profile ↗</a></td>`
+          : `<td><span style="color:#444;font-size:11px;">-</span></td>`;
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
@@ -475,7 +429,7 @@ function renderTable(rows) {
         </tr>`
       : '';
 
-    return `<tr class="data-row" onclick="openDetail(${i})">${cells}</tr>${detailRow}${errorRow}`;
+    return `<tr class="data-row">${cells}</tr>${detailRow}${errorRow}`;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =
@@ -491,58 +445,6 @@ function toggleDetail(i) {
   btn.classList.toggle('open', open);
 }
 
-// ── 상세보기 모달 ─────────────────────────────────────────────────────────────
-function openDetail(i) {
-  const q = _rows[i];
-  if (!q) return;
-
-  document.getElementById('modal-title').textContent =
-    `Query Detail — ${q._cluster ?? ''} / ${q.user ?? ''}`;
-
-  const fields = [
-    ['Query ID',   q.queryId        ?? '-'],
-    ['클러스터',   q._cluster       ?? '-'],
-    ['사용자',     q.user           ?? '-'],
-    ['상태',       `<span class="s s-${q.queryState}">${q.queryState ?? '-'}</span>`],
-    ['Database',   q.database       ?? '-'],
-    ['시작 시간',  fmtTime(q.startTime)],
-    ['종료 시간',  fmtTime(q.endTime)],
-    ['실행 시간',  fmtDur(q.durationMillis)],
-    ['메모리',     fmtBytes(q.memoryAggregate)],
-    ['읽은 행',    q.rowsProduced    != null ? q.rowsProduced.toLocaleString()    : '-'],
-    ['HDFS 읽기',  fmtBytes(q.hdfsBytesRead)],
-    ['Coordinator',q.coordinator?.hostId ?? '-'],
-  ];
-
-  const grid = fields.map(([l, v]) =>
-    `<div class="dg-label">${l}</div><div class="dg-value">${v}</div>`
-  ).join('');
-
-  const sqlSection = q.statement
-    ? `<div class="modal-section-title">SQL Statement</div>
-       <div class="modal-sql">${esc(q.statement)}</div>`
-    : '';
-
-  const errSection = q.queryState === 'EXCEPTION' && q.queryStatus
-    ? `<div class="modal-section-title" style="color:#ef5350">Error Message</div>
-       <div class="modal-err">${esc(q.queryStatus)}</div>`
-    : '';
-
-  document.getElementById('modal-body').innerHTML =
-    `<div class="detail-grid">${grid}</div>${sqlSection}${errSection}`;
-
-  document.getElementById('modal-backdrop').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('modal-backdrop').classList.remove('open');
-}
-
-function onBackdropClick(e) {
-  if (e.target === document.getElementById('modal-backdrop')) closeModal();
-}
-
-// ── 유틸 ─────────────────────────────────────────────────────────────────────
 function fmtDur(ms) {
   if (ms == null || ms === '') return '-';
   if (ms < 1000)  return ms + 'ms';
@@ -553,20 +455,12 @@ function fmtTime(iso) {
   if (!iso) return '-';
   return new Date(iso).toLocaleString('ko-KR', { hour12: false });
 }
-function fmtBytes(b) {
-  if (b == null) return '-';
-  if (b < 1024)        return b + ' B';
-  if (b < 1048576)     return (b / 1024).toFixed(1) + ' KB';
-  if (b < 1073741824)  return (b / 1048576).toFixed(1) + ' MB';
-  return (b / 1073741824).toFixed(2) + ' GB';
-}
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-  else if (e.key === 'Enter' && !document.getElementById('modal-backdrop').classList.contains('open')) search();
+  if (e.key === 'Enter') search();
 });
 </script>
 </body>

@@ -106,7 +106,7 @@ def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
     all_queries = []
     cluster_results = []
 
-    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+    with ThreadPoolExecutor(max_workers=max(1, len(targets))) as executor:
         futures = {executor.submit(fetch_queries, c, params): c for c in targets}
         for future in as_completed(futures):
             result = future.result()

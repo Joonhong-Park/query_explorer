@@ -289,12 +289,17 @@ function applyTabFilter() {
 }
 
 function updateTabCounts() {
+  // 한 번만 순회해서 클러스터별 카운트맵 생성
+  const counts = _allRows.reduce((m, q) => {
+    m[q._cluster] = (m[q._cluster] || 0) + 1;
+    return m;
+  }, {});
   document.getElementById('tab-count-all').textContent = _allRows.length;
   document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
     const c = tab.dataset.cluster;
     if (!c) return;
     const el = document.getElementById(`tab-count-${c}`);
-    if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
+    if (el) el.textContent = counts[c] || 0;
   });
 }
 
@@ -424,10 +429,10 @@ function renderTable(rows) {
         return `<td class="c-rows">${val !== '' ? Number(val).toLocaleString() : '-'}</td>`;
       if (c.key === 'startTime' || c.key === 'endTime')
         return `<td class="c-time">${fmtTime(val)}</td>`;
-      if (c.key === 'statement')
-        return `<td class="c-stmt">
-          <span class="stmt-text" title="${esc(stmt)}">${esc(stmt)}</span>
-        </td>`;
+      if (c.key === 'statement') {
+        const s = esc(stmt);
+        return `<td class="c-stmt"><span class="stmt-text">${s}</span></td>`;
+      }
       if (c.key === 'queryStatus') {
         const v = esc(errMsg);
         return `<td class="c-qstatus" title="${v}">${v}</td>`;
@@ -485,9 +490,12 @@ function fmtDur(ms) {
   if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
   return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
 }
+const _dtFmt = new Intl.DateTimeFormat('ko-KR', { hour12: false,
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit' });
 function fmtTime(iso) {
   if (!iso) return '-';
-  return new Date(iso).toLocaleString('ko-KR', { hour12: false });
+  try { return _dtFmt.format(new Date(iso)); } catch { return iso; }
 }
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

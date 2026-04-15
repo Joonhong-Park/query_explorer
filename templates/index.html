@@ -25,6 +25,7 @@
   }
   .fg input[type="text"] { min-width: 150px; }
   .fg input[type="datetime-local"] { min-width: 172px; color-scheme: dark; }
+  .fg select { min-width: 110px; }
   .fg input:focus, .fg select:focus { outline: none; border-color: #5b7fe0; }
 
   .presets { display: flex; gap: 4px; }
@@ -45,21 +46,6 @@
   .btn-secondary:hover { background: #363a52; }
   .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
 
-  /* ── 클러스터 탭 ── */
-  .cluster-tabs {
-    background: #0d0f16; border-bottom: 1px solid #2a2d3e;
-    padding: 0 20px; display: flex; gap: 0; overflow-x: auto;
-  }
-  .cluster-tab {
-    padding: 8px 16px; font-size: 12px; font-weight: 500; color: #555;
-    cursor: pointer; border-bottom: 2px solid transparent;
-    white-space: nowrap; transition: color .15s; display: flex; align-items: center; gap: 6px;
-  }
-  .cluster-tab:hover { color: #aaa; }
-  .cluster-tab.active { color: #7eb8f7; border-bottom-color: #7eb8f7; }
-  .tab-count { font-size: 10px; background: #1e2130; color: #666; padding: 1px 6px; border-radius: 8px; }
-  .cluster-tab.active .tab-count { background: #1a2a4a; color: #7eb8f7; }
-
   /* ── 상태 바 ── */
   .status-bar {
     background: #0d0f16; border-bottom: 1px solid #1e2130;
@@ -72,7 +58,7 @@
   .filter-tag { font-family: monospace; font-size: 11px; color: #ffa726; }
 
   /* ── 테이블 ── */
-  .table-wrap { overflow: auto; height: calc(100vh - 225px); }
+  .table-wrap { overflow: auto; height: calc(100vh - 185px); }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: #13161f; color: #888; text-align: left;
@@ -186,6 +172,12 @@
     <input id="f-to" type="datetime-local">
   </div>
   <div class="fg">
+    <label>클러스터</label>
+    <select id="f-cluster">
+      <option value="">전체</option>
+    </select>
+  </div>
+  <div class="fg">
     <label>결과 수</label>
     <select id="f-limit">
       <option value="100">100건</option>
@@ -203,12 +195,6 @@
   </div>
 </div>
 
-<div class="cluster-tabs" id="cluster-tabs">
-  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
-    전체 <span class="tab-count" id="tab-count-all">0</span>
-  </div>
-</div>
-
 <div class="status-bar" id="status-bar">
   <span style="color:#555">검색 조건을 입력하고 검색하세요</span>
 </div>
@@ -218,11 +204,10 @@
 </div>
 
 <script>
-let _allRows       = [];
-let _rows          = [];
-let _sortCol       = 'startTime';
-let _sortDir       = -1;
-let _activeCluster = '';
+let _allRows = [];
+let _rows    = [];
+let _sortCol = 'startTime';
+let _sortDir = -1;
 
 const COLS = [
   { key: '_cluster',       label: '클러스터', cls: 'c-cluster', sort: true  },
@@ -244,41 +229,14 @@ async function loadClusters() {
   try {
     const res  = await fetch('/api/clusters');
     const data = await res.json();
-    const tabs = document.getElementById('cluster-tabs');
+    const sel  = document.getElementById('f-cluster');
     data.clusters.forEach(c => {
-      const div = document.createElement('div');
-      div.className       = 'cluster-tab';
-      div.dataset.cluster = c;
-      div.innerHTML       = `${c} <span class="tab-count" id="tab-count-${c}">0</span>`;
-      div.onclick         = () => selectTab(div);
-      tabs.appendChild(div);
+      const opt = document.createElement('option');
+      opt.value       = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
     });
   } catch(e) {}
-}
-
-function selectTab(el) {
-  document.querySelectorAll('.cluster-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  _activeCluster = el.dataset.cluster;
-  applyTabFilter();
-}
-
-function applyTabFilter() {
-  _rows = _activeCluster
-    ? _allRows.filter(q => q._cluster === _activeCluster)
-    : [..._allRows];
-  renderTable(_rows);
-  updateStatusSummary();
-}
-
-function updateTabCounts() {
-  document.getElementById('tab-count-all').textContent = _allRows.length;
-  document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
-    const c  = tab.dataset.cluster;
-    if (!c) return;
-    const el = document.getElementById(`tab-count-${c}`);
-    if (el) el.textContent = _allRows.filter(q => q._cluster === c).length;
-  });
 }
 
 function setPreset(hours, btn) {
@@ -313,14 +271,17 @@ async function search() {
 
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
+
+  if (v('f-cluster')) params.set('clusters', v('f-cluster'));
+
   params.set('limit', v('f-limit') || '1000');
 
   try {
     const res  = await fetch(`/api/queries?${params}`);
     const data = await res.json();
     _allRows = data.queries || [];
-    updateTabCounts();
-    applyTabFilter();
+    _rows    = [..._allRows];
+    renderTable(_rows);
     renderStatusBar(data);
   } catch(e) {
     document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
@@ -332,12 +293,11 @@ async function search() {
 function reset() {
   ['f-user','f-keyword','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
+  document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));
-  selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
   document.getElementById('status-bar').innerHTML = '<span style="color:#555">검색 조건을 입력하고 검색하세요</span>';
   document.getElementById('table-wrap').innerHTML  = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
   _allRows = []; _rows = [];
-  updateTabCounts();
 }
 
 function sortBy(col) {
@@ -360,14 +320,7 @@ function renderStatusBar(data) {
   const tag = data.filter_applied
     ? `<span class="filter-tag">filter: ${data.filter_applied}</span>` : '';
   document.getElementById('status-bar').innerHTML =
-    badges + tag + `<span class="summary" id="status-summary">총 ${_allRows.length}건</span>`;
-}
-
-function updateStatusSummary() {
-  const el = document.getElementById('status-summary');
-  if (el) el.textContent = _activeCluster
-    ? `${_activeCluster}: ${_rows.length}건 / 전체 ${_allRows.length}건`
-    : `총 ${_allRows.length}건`;
+    badges + tag + `<span class="summary">총 ${_allRows.length}건</span>`;
 }
 
 function renderTable(rows) {
@@ -421,10 +374,11 @@ function renderTable(rows) {
       </td>
     </tr>`;
 
-    const errorRow = isException && errMsg
+    // EXCEPTION이면 queryStatus 내용을 항상 표시
+    const errorRow = isException
       ? `<tr class="error-row">
           <td colspan="${colCount}">
-            <div class="err-block">${esc(errMsg)}</div>
+            <div class="err-block">${esc(errMsg || '(오류 메세지 없음)')}</div>
           </td>
         </tr>`
       : '';

@@ -71,7 +71,7 @@ async def get_query_profile(cluster_id: str, query_id: str):
         f"https://{cluster['host']}:{cluster['port']}"
         f"/api/{cluster['api_version']}"
         f"/clusters/{CM_CLUSTER_NAME}/services/impala"
-        f"/impalaQueries/{query_id}/queryProfile"
+        f"/impalaQueries/{query_id}/queryDetails"
     )
 
     try:

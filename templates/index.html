@@ -397,31 +397,28 @@ function renderTable(rows) {
       return `<td class="${c.cls}">${esc(String(val))}</td>`;
     }).join('');
 
-    const errSection = isError && errMsg
-      ? `<div class="err-label">Error Message</div>
-         <div class="err-block">${esc(errMsg)}</div>`
-      : '';
-
-    // EXCEPTION은 기본으로 펼쳐서 에러 로그 바로 노출
-    const defaultOpen = isError && errMsg;
-    if (defaultOpen) {
-      // 버튼도 열린 상태로 초기화 (렌더 후 처리)
-      setTimeout(() => {
-        const btn = document.getElementById(`tbtn-${i}`);
-        if (btn) { btn.textContent = '▼'; btn.classList.add('open'); }
-      }, 0);
-    }
-
-    const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:${defaultOpen ? '' : 'none'};">
+    // SQL 펼침 행 (▶ 버튼으로 토글)
+    const detailRow = `<tr class="detail-row" id="drow-${i}" style="display:none;">
       <td colspan="${colCount}">
         <div class="detail-wrap">
           <div class="sql-block">${esc(stmt)}</div>
-          ${errSection}
         </div>
       </td>
     </tr>`;
 
-    return `<tr>${cells}</tr>${detailRow}`;
+    // 에러 로그 행 (EXCEPTION + errorMessage 있으면 항상 표시)
+    const errorRow = isError && errMsg
+      ? `<tr class="detail-row">
+          <td colspan="${colCount}">
+            <div class="detail-wrap" style="padding-top:0;">
+              <div class="err-label">Error Message</div>
+              <div class="err-block">${esc(errMsg)}</div>
+            </div>
+          </td>
+        </tr>`
+      : '';
+
+    return `<tr>${cells}</tr>${detailRow}${errorRow}`;
   }).join('');
 
   document.getElementById('table-wrap').innerHTML =

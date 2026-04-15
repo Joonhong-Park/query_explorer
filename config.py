@@ -3,7 +3,6 @@ CM_CLUSTERS = [
     {"id": "cluster2", "host": "cm2", "port": 7183, "api_version": "v57"},
     {"id": "cluster3", "host": "cm3", "port": 7183, "api_version": "v54"},
     {"id": "cluster4", "host": "cm4", "port": 7183, "api_version": "v57"},
-    {"id": "cluster5", "host": "cm5", "port": 7183, "api_version": "v57"},
 ]
 
 CM_CLUSTER_NAME = "CDP-Base"

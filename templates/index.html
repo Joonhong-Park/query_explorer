@@ -133,14 +133,8 @@
 
   <!-- 키워드 (statement 검색) -->
   <div class="fg">
-    <label>Keyword (table, SQL 등)</label>
-    <input id="f-keyword" type="text" placeholder="테이블명, SQL 키워드 등">
-  </div>
-
-  <!-- 데이터베이스 -->
-  <div class="fg">
-    <label>Database</label>
-    <input id="f-database" type="text" placeholder="db_name">
+    <label>Keyword</label>
+    <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
   </div>
 
   <!-- 상태 -->
@@ -288,9 +282,8 @@ async function search() {
   const v = id => document.getElementById(id).value.trim();
   const params = new URLSearchParams();
 
-  if (v('f-user'))     params.set('user',     v('f-user'));
-  if (v('f-keyword'))  params.set('keyword',  v('f-keyword'));
-  if (v('f-database')) params.set('database', v('f-database'));
+  if (v('f-user'))    params.set('user',    v('f-user'));
+  if (v('f-keyword')) params.set('keyword', v('f-keyword'));
 
   // 상태 — 체크된 것만 (전체 체크면 파라미터 생략)
   const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
@@ -327,7 +320,7 @@ async function search() {
 }
 
 function reset() {
-  ['f-user','f-keyword','f-database'].forEach(id => document.getElementById(id).value = '');
+  ['f-user','f-keyword'].forEach(id => document.getElementById(id).value = '');
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
   document.querySelectorAll('.chk-cluster').forEach(c => c.checked = true);
   const chkAll = document.getElementById('chk-all');

@@ -41,14 +41,14 @@
   .state-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
 
   /* ── 조건 빌더 ── */
-  .cond-area { display: flex; flex-direction: column; gap: 4px; }
-  .cond-row  { display: flex; gap: 6px; align-items: center; }
+  .cond-area { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .cond-row  { display: flex; gap: 4px; align-items: center; }
   .cond-field, .cond-value {
     background: #1e2130; border: 1px solid #2e3148; color: #e0e0e0;
     padding: 5px 8px; border-radius: 4px; font-size: 12px; height: 30px;
   }
   .cond-field { min-width: 80px; }
-  .cond-value { min-width: 180px; }
+  .cond-value { min-width: 140px; }
   .cond-field:focus, .cond-value:focus { outline: none; border-color: #5b7fe0; }
   .cond-remove {
     background: none; border: 1px solid #2e3148; color: #666;

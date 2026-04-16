@@ -69,6 +69,8 @@
   .btn-primary:hover { background: #536dfe; }
   .btn-secondary { background: #2a2d3e; color: #aaa; }
   .btn-secondary:hover { background: #363a52; }
+  .btn-stop      { background: #c62828; color: #fff; }
+  .btn-stop:hover { background: #ef5350; }
   .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
 
   /* ── 클러스터 탭 ── */
@@ -1043,6 +1045,7 @@ span.flatpickr-weekday {
       <label>&nbsp;</label>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-primary" id="btn-search" onclick="search()">검색</button>
+        <button class="btn btn-stop" id="btn-stop" onclick="stopSearch()" style="display:none">중단</button>
         <button class="btn btn-secondary" onclick="reset()">초기화</button>
       </div>
     </div>
@@ -1248,14 +1251,40 @@ function setPreset(hours, btn) {
   if (btn) btn.classList.add('active');
 }
 
-let _currentSource = null;
+let _currentSource  = null;
+let _streamedQueries = [];
+
+function _searchDone(queries, selectedCluster) {
+  const btn = document.getElementById('btn-search');
+  _allRows  = queries;
+  _openRows = new Set();
+  _activeState = '';
+  selectStateTab(document.querySelector('#state-tabs .cluster-tab[data-state=""]'));
+  const targetTab = selectedCluster
+    ? document.querySelector(`#cluster-tabs .cluster-tab[data-cluster="${selectedCluster}"]`)
+    : document.querySelector('#cluster-tabs .cluster-tab[data-cluster=""]');
+  if (targetTab) selectTab(targetTab);
+  else applyTabFilter();
+  btn.disabled = false; btn.textContent = '검색';
+  document.getElementById('btn-stop').style.display = 'none';
+}
+
+function stopSearch() {
+  if (!_currentSource) return;
+  _currentSource.close(); _currentSource = null;
+  // 수집된 것까지만 시간 내림차순 정렬 후 출력
+  _streamedQueries.sort((a, b) => (b.startTime || '').localeCompare(a.startTime || ''));
+  _searchDone(_streamedQueries, '');
+}
 
 function search() {
   // 진행 중인 SSE 연결 종료
   if (_currentSource) { _currentSource.close(); _currentSource = null; }
+  _streamedQueries = [];
 
   const btn = document.getElementById('btn-search');
   btn.disabled = true; btn.textContent = '조회 중...';
+  document.getElementById('btn-stop').style.display = '';
   document.getElementById('table-wrap').innerHTML = '<div class="loading">⏳ 조회 중...</div>';
 
   const v = id => document.getElementById(id).value.trim();
@@ -1282,30 +1311,25 @@ function search() {
     const ev = JSON.parse(e.data);
 
     if (ev.type === 'progress') {
+      if (ev.new_queries && ev.new_queries.length) {
+        _streamedQueries.push(...ev.new_queries);
+      }
       if (ev.total > 0) {
-        const pct  = Math.round(ev.chunk / ev.total * 100);
-        const fmt  = iso => { const d = new Date(iso); const p = n => String(n).padStart(2,'0'); return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+        const pct = Math.round(ev.chunk / ev.total * 100);
+        const fmt = iso => { const d = new Date(iso); const p = n => String(n).padStart(2,'0'); return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
         document.getElementById('table-wrap').innerHTML =
           `<div class="loading">⏳ ${fmt(ev.chunk_from)} ~ ${fmt(ev.chunk_to)} 데이터 조회 중&nbsp;&nbsp;|&nbsp;&nbsp;수집: ${ev.collected}건&nbsp;&nbsp;(${pct}%)</div>`;
       }
 
     } else if (ev.type === 'done') {
       source.close(); _currentSource = null;
-      _allRows  = ev.queries || [];
-      _openRows = new Set();
-      _activeState = '';
-      selectStateTab(document.querySelector('#state-tabs .cluster-tab[data-state=""]'));
-      const targetTab = selectedCluster
-        ? document.querySelector(`#cluster-tabs .cluster-tab[data-cluster="${selectedCluster}"]`)
-        : document.querySelector('#cluster-tabs .cluster-tab[data-cluster=""]');
-      if (targetTab) selectTab(targetTab);
-      else applyTabFilter();
-      btn.disabled = false; btn.textContent = '검색';
+      _searchDone(ev.queries || [], selectedCluster);
 
     } else if (ev.type === 'error') {
       source.close(); _currentSource = null;
       document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${ev.message}</div>`;
       btn.disabled = false; btn.textContent = '검색';
+      document.getElementById('btn-stop').style.display = 'none';
     }
   };
 
@@ -1313,6 +1337,7 @@ function search() {
     source.close(); _currentSource = null;
     document.getElementById('table-wrap').innerHTML = '<div class="empty">연결 오류가 발생했습니다</div>';
     btn.disabled = false; btn.textContent = '검색';
+    document.getElementById('btn-stop').style.display = 'none';
   };
 }
 

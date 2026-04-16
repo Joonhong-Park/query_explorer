@@ -196,14 +196,7 @@ def fetch_all_clusters_stream(
         chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
         chunk_no  += 1
 
-        yield {
-            "type":       "progress",
-            "chunk":      chunk_no,
-            "total":      total_chunks,
-            "collected":  len(collected),
-            "chunk_from": chunk_from.isoformat(),
-            "chunk_to":   cursor_to.isoformat(),
-        }
+        prev_count = len(collected)
 
         chunk_params = {
             "limit": CURSOR_CHUNK_LIMIT,
@@ -224,8 +217,19 @@ def fetch_all_clusters_stream(
                     collected.append(q)
                     cluster_counts[res["cluster"]] += 1
 
+        new_queries = collected[prev_count:]
         logger.info("cursor chunk #%d/%d  %s ~ %s  collected=%d",
                     chunk_no, total_chunks, chunk_from.isoformat(), cursor_to.isoformat(), len(collected))
+
+        yield {
+            "type":        "progress",
+            "chunk":       chunk_no,
+            "total":       total_chunks,
+            "collected":   len(collected),
+            "chunk_from":  chunk_from.isoformat(),
+            "chunk_to":    cursor_to.isoformat(),
+            "new_queries": new_queries,
+        }
         cursor_to = chunk_from
 
     collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)

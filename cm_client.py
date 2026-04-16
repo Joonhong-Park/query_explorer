@@ -110,11 +110,11 @@ def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
 
     user_limit = params.get("limit", 100)
 
-    # 필터가 있을 때는 CM에 limit을 보내지 않아 매칭 결과 전체를 받고,
+    # 필터가 있을 때는 CM에 충분히 큰 limit을 보내 매칭 결과를 최대한 확보하고,
     # 이후 우리 쪽에서 user_limit을 적용한다.
-    # (CM이 limit을 먼저 적용한 뒤 필터링하면 실제보다 적게 반환되는 문제 방지)
+    # limit을 아예 제거하면 CM 내부 스캔 한도(scan limit)에 걸려 오히려 더 적게 반환됨.
     if params.get("filter"):
-        cm_params = {k: v for k, v in params.items() if k != "limit"}
+        cm_params = {**params, "limit": 5000}
     else:
         cm_params = params
 

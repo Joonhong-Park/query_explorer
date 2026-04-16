@@ -20,17 +20,14 @@
   .fg { display: flex; flex-direction: column; gap: 3px; }
   .fg label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
   .fg input[type="text"],
-  .fg input[type="date"],
+  .fg input[type="datetime-local"],
   .fg select {
     background: #1e2130; border: 1px solid #2e3148; color: #e0e0e0;
     padding: 5px 8px; border-radius: 4px; font-size: 12px; height: 30px;
-    color-scheme: dark;
   }
   .fg input[type="text"] { min-width: 150px; }
-  .fg input[type="date"] { min-width: 120px; }
-  .fg input.time-text { min-width: 58px; width: 58px; font-variant-numeric: tabular-nums; }
+  .fg input[type="datetime-local"] { min-width: 172px; color-scheme: dark; }
   .fg select { min-width: 110px; }
-  .fg .dt-pair { display: flex; gap: 4px; }
   .fg input:focus, .fg select:focus { outline: none; border-color: #5b7fe0; }
 
   .presets { display: flex; gap: 4px; }
@@ -212,17 +209,11 @@
     </div>
     <div class="fg">
       <label>시작 일시</label>
-      <div class="dt-pair">
-        <input id="f-from-date" type="date" oninput="clearPreset()">
-        <input id="f-from-time" type="text" class="time-text" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);clearPreset()">
-      </div>
+      <input id="f-from" type="datetime-local" oninput="clearPreset()">
     </div>
     <div class="fg">
       <label>종료 일시</label>
-      <div class="dt-pair">
-        <input id="f-to-date" type="date" oninput="clearPreset()">
-        <input id="f-to-time" type="text" class="time-text" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);clearPreset()">
-      </div>
+      <input id="f-to" type="datetime-local" oninput="clearPreset()">
     </div>
   </div>
   <div class="filter-row">
@@ -445,23 +436,16 @@ function clearPreset() {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
 }
 
-function formatTimeInput(el) {
-  // 숫자만 남기고 자동으로 HH:MM 형식 완성
-  let val = el.value.replace(/[^0-9]/g, '');
-  if (val.length >= 3) val = val.slice(0,2) + ':' + val.slice(2,4);
-  el.value = val;
+function toLocalDT(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function setPreset(hours, btn) {
   const now  = new Date();
   const from = new Date(now - hours * 3600000);
-  const p = n => String(n).padStart(2, '0');
-  const dateStr = d => `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
-  const timeStr = d => `${p(d.getHours())}:${p(d.getMinutes())}`;
-  document.getElementById('f-from-date').value = dateStr(from);
-  document.getElementById('f-from-time').value = timeStr(from);
-  document.getElementById('f-to-date').value   = dateStr(now);
-  document.getElementById('f-to-time').value   = timeStr(now);
+  document.getElementById('f-from').value = toLocalDT(from);
+  document.getElementById('f-to').value   = toLocalDT(now);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 }
@@ -478,10 +462,8 @@ async function search() {
   if (conds.length) params.set('conditions', JSON.stringify(conds));
   if (v('f-qtype'))   params.set('query_type', v('f-qtype'));
 
-  const fromDate = v('f-from-date'), fromTime = v('f-from-time');
-  const toDate   = v('f-to-date'),   toTime   = v('f-to-time');
-  if (fromDate) params.set('from_time', new Date(`${fromDate}T${fromTime || '00:00'}`).toISOString());
-  if (toDate)   params.set('to_time',   new Date(`${toDate}T${toTime || '23:59'}`).toISOString());
+  if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
+  if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());
 
   const selectedCluster = v('f-cluster');
   if (selectedCluster) params.set('clusters', selectedCluster);
@@ -514,7 +496,7 @@ function reset() {
   document.getElementById('cond-area').innerHTML = '';
   _condCount = 0;
   addCond();
-  ['f-from-date','f-from-time','f-to-date','f-to-time'].forEach(id => document.getElementById(id).value = '');
+  ['f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-qtype').value = 'QUERY';
   document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));

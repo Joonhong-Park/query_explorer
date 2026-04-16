@@ -162,7 +162,7 @@ def fetch_all_clusters(
     user_limit = params.get("limit", 100)
     has_cond   = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
 
-    print(f"[fetch_all_clusters] query_type={query_type!r} conditions={conditions} has_cond={bool(has_cond)}", flush=True)
+    logger.info("[fetch_all_clusters] query_type=%r conditions=%s has_cond=%s", query_type, conditions, bool(has_cond))
 
     # ── 조건 없음: 기존 단순 요청 ────────────────────────────────────────────
     if not has_cond:
@@ -220,7 +220,7 @@ def fetch_all_clusters(
                     collected.append(q)
                     cluster_counts[res["cluster"]] += 1
 
-        print(f"[cursor] chunk #{chunk_no}  {chunk_from.isoformat()} ~ {cursor_to.isoformat()}  collected={len(collected)}", flush=True)
+        logger.info("cursor chunk #%d  %s ~ %s  collected=%d", chunk_no, chunk_from.isoformat(), cursor_to.isoformat(), len(collected))
         cursor_to = chunk_from
 
     collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)

@@ -171,7 +171,11 @@
 <div class="filters">
   <div class="filter-row">
     <div class="fg">
-      <label>조건 <button class="btn-add-cond" onclick="addCond()">+ 추가</button></label>
+      <label>사용자</label>
+      <input id="f-user" type="text" placeholder="username">
+    </div>
+    <div class="fg">
+      <label>키워드 rlike &nbsp;<button class="btn-add-cond" onclick="addCond()">+ 추가</button></label>
       <div class="cond-area" id="cond-area"></div>
     </div>
     <div class="fg">
@@ -183,6 +187,8 @@
         <option value="N/A">N/A</option>
       </select>
     </div>
+  </div>
+  <div class="filter-row">
     <div class="fg">
       <label>상태</label>
       <div class="state-checks">
@@ -275,54 +281,38 @@ const COLS = [
 ];
 
 window.onload = () => {
-  addCond('user');
   setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
 };
 
-function addCond(field, value) {
+function addCond(value) {
   const area = document.getElementById('cond-area');
   const id   = _condCount++;
-  const f    = field || 'user';
   const row  = document.createElement('div');
   row.className = 'cond-row';
   row.id        = `cond-row-${id}`;
   row.innerHTML = `
-    <span class="cond-and-label" style="display:none">AND</span>
-    <select class="cond-field" id="cond-field-${id}"
-      onchange="document.getElementById('cond-val-${id}').placeholder=this.value==='keyword'?'table, 키워드 등':'username'">
-      <option value="user"${f==='user'?' selected':''}>사용자</option>
-      <option value="keyword"${f==='keyword'?' selected':''}>키워드</option>
-    </select>
+    <span class="cond-and-label">AND</span>
     <input class="cond-value" id="cond-val-${id}" type="text"
-      placeholder="${f==='keyword'?'table, 키워드 등':'username'}"
+      placeholder="table, 키워드 등"
       value="${esc(value||'')}">
     <button class="cond-remove" onclick="removeCond(${id})" title="삭제">×</button>`;
   area.appendChild(row);
-  _rebuildAndLabels();
 }
 
 function removeCond(id) {
   const row = document.getElementById(`cond-row-${id}`);
   if (row) row.remove();
-  _rebuildAndLabels();
-}
-
-function _rebuildAndLabels() {
-  const rows = document.querySelectorAll('#cond-area .cond-row');
-  rows.forEach((row, idx) => {
-    const lbl = row.querySelector('.cond-and-label');
-    if (lbl) lbl.style.display = idx === 0 ? 'none' : '';
-  });
 }
 
 function getConditions() {
   const conds = [];
+  const user = document.getElementById('f-user').value.trim();
+  if (user) conds.push({ field: 'user', value: user });
   document.querySelectorAll('#cond-area .cond-row').forEach(row => {
-    const sel = row.querySelector('.cond-field');
     const inp = row.querySelector('.cond-value');
-    if (sel && inp && inp.value.trim())
-      conds.push({ field: sel.value, value: inp.value.trim() });
+    if (inp && inp.value.trim())
+      conds.push({ field: 'keyword', value: inp.value.trim() });
   });
   return conds;
 }
@@ -452,9 +442,9 @@ async function search() {
 }
 
 function reset() {
+  document.getElementById('f-user').value = '';
   document.getElementById('cond-area').innerHTML = '';
   _condCount = 0;
-  addCond('user');
   ['f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-qtype').value = 'QUERY';
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);

@@ -401,8 +401,8 @@ function updateTabCounts() {
   clusterBase.forEach(q => { clusterCounts[q._cluster] = (clusterCounts[q._cluster] || 0) + 1; });
   stateBase.forEach(q =>   { stateCounts[q.queryState] = (stateCounts[q.queryState] || 0) + 1; });
 
-  document.getElementById('tab-count-all').textContent  = clusterBase.length;
-  document.getElementById('stab-count-all').textContent = stateBase.length;
+  document.getElementById('tab-count-all').textContent  = _allRows.length;
+  document.getElementById('stab-count-all').textContent = _allRows.length;
   document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
     const c = tab.dataset.cluster;
     if (!c) return;

@@ -14,26 +14,30 @@ requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 
 def build_filter(
-    user: Optional[str] = None,
-    keyword: Optional[str] = None,
-    query_state: Optional[str] = None,  # 쉼표 구분 다중 상태 가능 (예: "FINISHED,EXCEPTION")
     query_type: Optional[str] = None,   # QUERY / SET / DDL / N/A
+    query_state: Optional[str] = None,  # 쉼표 구분 다중 상태 (예: "FINISHED,EXCEPTION")
+    conditions: list = None,            # [{"field": "user"|"keyword", "value": "..."}]
 ) -> str:
     """
     CM impalaQueries filter 표현식 조립.
-
-    keyword 검색 예시:
-        "mytable"     → statement에 mytable 포함
-        "mydb.mytable"→ statement에 mydb.mytable 포함
+    conditions 예시:
+        [{"field": "user",    "value": "alice"}]   → user = "alice"
+        [{"field": "keyword", "value": "mytable"}] → statement rlike "(?i).*mytable.*"
+    여러 조건은 모두 AND로 연결됨.
     """
     parts = []
 
     if query_type:
         parts.append(f'queryType = "{query_type}"')
-    if user:
-        parts.append(f'user = "{user}"')
-    if keyword:
-        parts.append(f'statement rlike "(?i).*{keyword}.*"')
+    for cond in (conditions or []):
+        field = cond.get("field", "")
+        value = (cond.get("value") or "").strip()
+        if not value:
+            continue
+        if field == "user":
+            parts.append(f'user = "{value}"')
+        elif field == "keyword":
+            parts.append(f'statement rlike "(?i).*{value}.*"')
     if query_state:
         states = [s.strip() for s in query_state.split(",") if s.strip()]
         if len(states) == 1:

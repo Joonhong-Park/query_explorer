@@ -40,6 +40,29 @@
   .state-checks label { display: flex; align-items: center; gap: 3px; font-size: 12px; cursor: pointer; }
   .state-checks input[type="checkbox"] { accent-color: #3d5afe; cursor: pointer; }
 
+  /* ── 조건 빌더 ── */
+  .cond-area { display: flex; flex-direction: column; gap: 4px; }
+  .cond-row  { display: flex; gap: 6px; align-items: center; }
+  .cond-field, .cond-value {
+    background: #1e2130; border: 1px solid #2e3148; color: #e0e0e0;
+    padding: 5px 8px; border-radius: 4px; font-size: 12px; height: 30px;
+  }
+  .cond-field { min-width: 80px; }
+  .cond-value { min-width: 180px; }
+  .cond-field:focus, .cond-value:focus { outline: none; border-color: #5b7fe0; }
+  .cond-remove {
+    background: none; border: 1px solid #2e3148; color: #666;
+    cursor: pointer; font-size: 14px; padding: 0 7px; border-radius: 4px; height: 30px;
+  }
+  .cond-remove:hover { color: #ef9a9a; border-color: #ef9a9a; }
+  .btn-add-cond {
+    background: none; border: 1px dashed #3d5afe; color: #7eb8f7;
+    cursor: pointer; font-size: 11px; padding: 1px 10px; border-radius: 4px;
+    height: 22px; margin-left: 2px;
+  }
+  .btn-add-cond:hover { background: #1a2a4a; }
+  .cond-and-label { font-size: 10px; color: #555; padding: 0 2px; user-select: none; }
+
   .btn { padding: 5px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; height: 30px; }
   .btn-primary   { background: #3d5afe; color: #fff; }
   .btn-primary:hover { background: #536dfe; }
@@ -141,12 +164,8 @@
 <div class="filters">
   <div class="filter-row">
     <div class="fg">
-      <label>User</label>
-      <input id="f-user" type="text" placeholder="username">
-    </div>
-    <div class="fg">
-      <label>Keyword</label>
-      <input id="f-keyword" type="text" placeholder="table, db.table, SQL 키워드 등">
+      <label>조건 <button class="btn-add-cond" onclick="addCond()">+ 추가</button></label>
+      <div class="cond-area" id="cond-area"></div>
     </div>
     <div class="fg">
       <label>Query Type</label>
@@ -231,6 +250,7 @@ let _sortCol       = 'startTime';
 let _sortDir       = -1;
 let _activeCluster = '';
 let _openRows      = new Set(); // 펼쳐진 행의 queryId
+let _condCount     = 0;
 
 const COLS = [
   { key: '_toggle',          label: '',              cls: 'c-toggle',    sort: false },
@@ -248,9 +268,57 @@ const COLS = [
 ];
 
 window.onload = () => {
+  addCond('user');
   setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
 };
+
+function addCond(field, value) {
+  const area = document.getElementById('cond-area');
+  const id   = _condCount++;
+  const f    = field || 'user';
+  const row  = document.createElement('div');
+  row.className = 'cond-row';
+  row.id        = `cond-row-${id}`;
+  row.innerHTML = `
+    <span class="cond-and-label" style="display:none">AND</span>
+    <select class="cond-field" id="cond-field-${id}"
+      onchange="document.getElementById('cond-val-${id}').placeholder=this.value==='keyword'?'table, 키워드 등':'username'">
+      <option value="user"${f==='user'?' selected':''}>사용자</option>
+      <option value="keyword"${f==='keyword'?' selected':''}>키워드</option>
+    </select>
+    <input class="cond-value" id="cond-val-${id}" type="text"
+      placeholder="${f==='keyword'?'table, 키워드 등':'username'}"
+      value="${esc(value||'')}">
+    <button class="cond-remove" onclick="removeCond(${id})" title="삭제">×</button>`;
+  area.appendChild(row);
+  _rebuildAndLabels();
+}
+
+function removeCond(id) {
+  const row = document.getElementById(`cond-row-${id}`);
+  if (row) row.remove();
+  _rebuildAndLabels();
+}
+
+function _rebuildAndLabels() {
+  const rows = document.querySelectorAll('#cond-area .cond-row');
+  rows.forEach((row, idx) => {
+    const lbl = row.querySelector('.cond-and-label');
+    if (lbl) lbl.style.display = idx === 0 ? 'none' : '';
+  });
+}
+
+function getConditions() {
+  const conds = [];
+  document.querySelectorAll('#cond-area .cond-row').forEach(row => {
+    const sel = row.querySelector('.cond-field');
+    const inp = row.querySelector('.cond-value');
+    if (sel && inp && inp.value.trim())
+      conds.push({ field: sel.value, value: inp.value.trim() });
+  });
+  return conds;
+}
 
 async function loadClusters() {
   try {
@@ -339,8 +407,8 @@ async function search() {
   const v = id => document.getElementById(id).value.trim();
   const params = new URLSearchParams();
 
-  if (v('f-user'))    params.set('user',       v('f-user'));
-  if (v('f-keyword')) params.set('keyword',    v('f-keyword'));
+  const conds = getConditions();
+  if (conds.length) params.set('conditions', JSON.stringify(conds));
   if (v('f-qtype'))   params.set('query_type', v('f-qtype'));
 
   const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
@@ -377,7 +445,10 @@ async function search() {
 }
 
 function reset() {
-  ['f-user','f-keyword','f-from','f-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cond-area').innerHTML = '';
+  _condCount = 0;
+  addCond('user');
+  ['f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-qtype').value = 'QUERY';
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);
   document.getElementById('f-cluster').value = '';

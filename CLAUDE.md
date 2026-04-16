@@ -64,6 +64,8 @@ CM_CLUSTERS = [
 ]
 CM_CLUSTER_NAME = "CDP-Base"
 REQUEST_TIMEOUT = 120  # 쿼리 수가 많으면 응답이 느릴 수 있음
+DEFAULT_LIMIT   = 100
+MAX_LIMIT       = 1000
 ```
 
 - cluster3만 api_version `v54`, 나머지는 `v57`
@@ -79,10 +81,19 @@ GET /api/{api_version}/clusters/{CM_CLUSTER_NAME}/services/impala/impalaQueries
 ```
 
 ### 필터 문법 (`cm_client.py:build_filter`)
+
+`build_filter(query_type, query_state, conditions)` 함수가 CM filter 표현식을 조립함.
+
+- `conditions`: `[{"field": "user"|"keyword", "value": "..."}]` 형태의 리스트
+  - `field="user"` → `user = "value"`
+  - `field="keyword"` → `statement rlike "(?i).*value.*"`
+  - 여러 조건은 모두 AND로 연결
+
+생성되는 표현식 예시:
 ```
-queryType = "QUERY"                          # 쿼리 타입 (가장 먼저 적용)
-user = "username"
-statement rlike "(?i).*keyword.*"
+queryType = "QUERY"                          # query_type 파라미터
+user = "alice"                               # conditions field=user
+statement rlike "(?i).*mytable.*"            # conditions field=keyword
 queryState rlike "(FINISHED|EXCEPTION)"     # 다중 상태: 괄호+파이프, 공백 없이
 ```
 > **주의**: 다중 상태 rlike에서 `"FINISHED| RUNNING"` 처럼 공백이 들어가면 매칭 실패.
@@ -127,8 +138,7 @@ GET /api/{api_version}/clusters/{CM_CLUSTER_NAME}/services/impala/impalaQueries/
 ### `/api/queries` 파라미터
 | 파라미터 | 타입 | 기본값 | 설명 |
 |----------|------|--------|------|
-| `user` | str | - | 사용자명 필터 |
-| `keyword` | str | - | statement rlike 검색 |
+| `conditions` | str (JSON) | - | 조건 배열: `[{"field":"user"\|"keyword","value":"..."}]` |
 | `query_type` | str | - | QUERY / SET / DDL / N/A |
 | `query_state` | str | - | 쉼표 구분 상태 (예: `FINISHED,EXCEPTION`) |
 | `hours` | int | - | 최근 N시간 (from/to 없을 때) |
@@ -137,6 +147,8 @@ GET /api/{api_version}/clusters/{CM_CLUSTER_NAME}/services/impala/impalaQueries/
 | `limit` | int | 100 | 결과 수 (최대 1000) |
 | `clusters` | str | - | 쉼표 구분 클러스터 ID |
 
+> `from_time`/`to_time`, `hours` 모두 없으면 기본값 최근 **24시간** 적용.
+
 ---
 
 ## 프론트엔드 구조 (`templates/index.html`)
@@ -144,12 +156,14 @@ GET /api/{api_version}/clusters/{CM_CLUSTER_NAME}/services/impala/impalaQueries/
 단일 HTML 파일 (Jinja2 미사용, `Path.read_text()`로 서빙).
 
 ### 검색 조건 (2행 구성)
-**1행**: User / Keyword / Query Type / 상태 체크박스 / 빠른 범위 / 시작일시 / 종료일시
+**1행**: 조건 빌더 / Query Type / 상태 체크박스 / 빠른 범위 / 시작일시 / 종료일시
 **2행**: 클러스터 드롭다운 / 결과 수 / 검색·초기화 버튼
 
+- **조건 빌더**: `+ 추가` 버튼으로 조건 행을 동적 추가/삭제. 각 행은 (필드 선택: 사용자|키워드) + (값 입력). 여러 조건은 AND 레이블로 구분. 초기값: 사용자 조건 1개
 - Query Type 기본값: **QUERY** (초기화 시에도 QUERY로 복원)
 - 빠른 범위 기본값: **1h**
 - 결과 수 기본값: **100건**
+- 빠른 범위 버튼: 1h / 6h / 12h / 24h / 3d / 7d / 15d / 30d
 
 ### 테이블 컬럼
 | 컬럼 | 소스 필드 | 정렬 |

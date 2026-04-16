@@ -1,11 +1,49 @@
 """
 Query Explorer — Step 5
 검색 필터: user / table / database / 상태 / 시간 범위
+
+────────────────────────────────────────────────────────────────────────────
+systemd 서비스 등록 (node1에서 root 또는 sudo 권한으로 실행)
+────────────────────────────────────────────────────────────────────────────
+
+1. 서비스 파일 생성
+   $ sudo vi /etc/systemd/system/query-explorer.service
+
+   [Unit]
+   Description=Query Explorer
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=<실행할 OS 사용자>
+   WorkingDirectory=/path/to/query_explorer
+   ExecStart=/usr/bin/python3 /path/to/query_explorer/main.py
+   Restart=on-failure
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+
+2. 서비스 등록 및 시작
+   $ sudo systemctl daemon-reload          # 서비스 파일 인식
+   $ sudo systemctl enable query-explorer  # 부팅 시 자동 시작 등록
+   $ sudo systemctl start query-explorer   # 즉시 시작
+
+3. 상태 확인 / 로그 조회
+   $ sudo systemctl status query-explorer
+   $ sudo journalctl -u query-explorer -f  # 실시간 로그
+
+4. 중지 / 재시작
+   $ sudo systemctl stop query-explorer
+   $ sudo systemctl restart query-explorer
+────────────────────────────────────────────────────────────────────────────
 """
 
 from asyncio import get_running_loop
 from pathlib import Path
 from typing import Optional
+
+import json as _json
 
 import requests as _requests
 from requests.auth import HTTPBasicAuth
@@ -35,8 +73,7 @@ async def list_clusters():
 
 @app.get("/api/queries")
 async def get_queries(
-    user:        Optional[str] = Query(None),
-    keyword:     Optional[str] = Query(None),
+    conditions:  Optional[str] = Query(None),  # JSON: [{"field":"user","value":"alice"},...]
     query_state: Optional[str] = Query(None),
     query_type:  Optional[str] = Query(None),
     hours:       Optional[int] = Query(None),
@@ -45,7 +82,13 @@ async def get_queries(
     limit:       int           = Query(100, ge=1, le=1000),
     clusters:    Optional[str] = Query(None),  # 쉼표 구분 cluster ID
 ):
-    filter_str       = build_filter(user, keyword, query_state, query_type)
+    cond_list = []
+    if conditions:
+        try:
+            cond_list = _json.loads(conditions)
+        except Exception:
+            pass
+    filter_str       = build_filter(query_type, query_state, cond_list)
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
 
     params = {"limit": limit}

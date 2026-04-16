@@ -1248,10 +1248,15 @@ function setPreset(hours, btn) {
   if (btn) btn.classList.add('active');
 }
 
-async function search() {
+let _currentSource = null;
+
+function search() {
+  // 진행 중인 SSE 연결 종료
+  if (_currentSource) { _currentSource.close(); _currentSource = null; }
+
   const btn = document.getElementById('btn-search');
   btn.disabled = true; btn.textContent = '조회 중...';
-  document.getElementById('table-wrap').innerHTML = '<div class="loading">⏳ 클러스터 조회 중...</div>';
+  document.getElementById('table-wrap').innerHTML = '<div class="loading">⏳ 조회 중...</div>';
 
   const v = id => document.getElementById(id).value.trim();
   const params = new URLSearchParams();
@@ -1270,25 +1275,44 @@ async function search() {
 
   params.set('limit', v('f-limit') || '100');
 
-  try {
-    const res  = await fetch(`/api/queries?${params}`);
-    const data = await res.json();
-    _allRows  = data.queries || [];
-    _openRows = new Set();
-    _activeState = '';
-    selectStateTab(document.querySelector('#state-tabs .cluster-tab[data-state=""]'));
+  const source = new EventSource(`/api/queries/stream?${params}`);
+  _currentSource = source;
 
-    // 드롭다운 선택 클러스터에 맞는 탭 자동 활성화
-    const targetTab = selectedCluster
-      ? document.querySelector(`#cluster-tabs .cluster-tab[data-cluster="${selectedCluster}"]`)
-      : document.querySelector('#cluster-tabs .cluster-tab[data-cluster=""]');
-    if (targetTab) selectTab(targetTab);
-    else applyTabFilter();
-  } catch(e) {
-    document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
-  } finally {
+  source.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+
+    if (ev.type === 'progress') {
+      if (ev.total > 0) {
+        const pct = Math.round(ev.chunk / ev.total * 100);
+        document.getElementById('table-wrap').innerHTML =
+          `<div class="loading">⏳ 청크 ${ev.chunk} / ${ev.total} 조회 중&nbsp;&nbsp;|&nbsp;&nbsp;수집: ${ev.collected}건&nbsp;&nbsp;(${pct}%)</div>`;
+      }
+
+    } else if (ev.type === 'done') {
+      source.close(); _currentSource = null;
+      _allRows  = ev.queries || [];
+      _openRows = new Set();
+      _activeState = '';
+      selectStateTab(document.querySelector('#state-tabs .cluster-tab[data-state=""]'));
+      const targetTab = selectedCluster
+        ? document.querySelector(`#cluster-tabs .cluster-tab[data-cluster="${selectedCluster}"]`)
+        : document.querySelector('#cluster-tabs .cluster-tab[data-cluster=""]');
+      if (targetTab) selectTab(targetTab);
+      else applyTabFilter();
+      btn.disabled = false; btn.textContent = '검색';
+
+    } else if (ev.type === 'error') {
+      source.close(); _currentSource = null;
+      document.getElementById('table-wrap').innerHTML = `<div class="empty">오류: ${ev.message}</div>`;
+      btn.disabled = false; btn.textContent = '검색';
+    }
+  };
+
+  source.onerror = () => {
+    source.close(); _currentSource = null;
+    document.getElementById('table-wrap').innerHTML = '<div class="empty">연결 오류가 발생했습니다</div>';
     btn.disabled = false; btn.textContent = '검색';
-  }
+  };
 }
 
 function reset() {

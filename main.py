@@ -39,6 +39,7 @@ systemd 서비스 등록 (node1에서 root 또는 sudo 권한으로 실행)
 ────────────────────────────────────────────────────────────────────────────
 """
 
+import asyncio
 import logging
 from asyncio import get_running_loop
 from pathlib import Path
@@ -55,10 +56,10 @@ import requests as _requests
 from requests.auth import HTTPBasicAuth
 
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 
 from config import CM_CLUSTERS, CM_CLUSTER_NAME, CM_USERNAME, CM_PASSWORD, REQUEST_TIMEOUT, APP_PORT
-from cm_client import build_filter, resolve_time_range, fetch_queries, fetch_all_clusters
+from cm_client import build_filter, resolve_time_range, fetch_queries, fetch_all_clusters, fetch_all_clusters_stream
 
 app = FastAPI(title="Query Explorer")
 
@@ -109,6 +110,68 @@ async def get_queries(
     )
     result["filter_applied"] = build_filter(query_type, query_state, cond_list)
     return result
+
+
+def _parse_query_params(conditions, query_state, query_type, hours, from_time, to_time, limit, clusters):
+    cond_list = []
+    if conditions:
+        try:
+            cond_list = _json.loads(conditions)
+        except Exception:
+            pass
+    from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
+    params = {"limit": limit}
+    if from_iso: params["from"] = from_iso
+    if to_iso:   params["to"]   = to_iso
+    cluster_ids = [c.strip() for c in clusters.split(",")] if clusters else None
+    return params, cluster_ids, cond_list
+
+
+@app.get("/api/queries/stream")
+async def stream_queries(
+    conditions:  Optional[str] = Query(None),
+    query_state: Optional[str] = Query(None),
+    query_type:  Optional[str] = Query(None),
+    hours:       Optional[int] = Query(None),
+    from_time:   Optional[str] = Query(None),
+    to_time:     Optional[str] = Query(None),
+    limit:       int           = Query(100, ge=1, le=1000),
+    clusters:    Optional[str] = Query(None),
+):
+    params, cluster_ids, cond_list = _parse_query_params(
+        conditions, query_state, query_type, hours, from_time, to_time, limit, clusters
+    )
+    filter_applied = build_filter(query_type, query_state, cond_list)
+    loop  = get_running_loop()
+    queue = asyncio.Queue()
+
+    def run():
+        try:
+            for event in fetch_all_clusters_stream(params, cluster_ids, query_type, cond_list):
+                if event["type"] == "done":
+                    event["filter_applied"] = filter_applied
+                asyncio.run_coroutine_threadsafe(queue.put(event), loop)
+        except Exception as e:
+            asyncio.run_coroutine_threadsafe(
+                queue.put({"type": "error", "message": str(e)}), loop
+            )
+        finally:
+            asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+
+    loop.run_in_executor(None, run)
+
+    async def generate():
+        while True:
+            event = await queue.get()
+            if event is None:
+                break
+            yield f"data: {_json.dumps(event)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/profile/{cluster_id}/{query_id}", response_class=HTMLResponse)

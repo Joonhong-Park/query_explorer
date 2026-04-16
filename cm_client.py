@@ -1,8 +1,9 @@
 import logging
+import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Generator, Optional
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -141,19 +142,16 @@ def _fetch_parallel(targets: list, params: dict) -> list[dict]:
     return results
 
 
-def fetch_all_clusters(
+def fetch_all_clusters_stream(
     params: dict,
     cluster_ids: list = None,
     query_type: Optional[str] = None,
     conditions: list = None,
-) -> dict:
-    """전체(또는 선택된) 클러스터에서 쿼리를 조회합니다.
+) -> Generator[dict, None, None]:
+    """진행도를 dict로 yield하는 제너레이터.
 
-    조건(query_type / conditions)이 없으면 CM에 그대로 요청.
-    조건이 있으면 시간 커서 페이지네이션으로 CM 스캔 한도를 우회:
-      - 전체 시간 범위를 CURSOR_CHUNK_HOURS 단위로 최신 → 과거 순으로 분할 요청
-      - 각 청크에 CM 필터 적용 (좁은 범위라 스캔 한도에 걸리지 않음)
-      - Python에서 재검증 후 전체 범위 스캔 완료 후 user_limit 적용
+    {"type":"progress", "chunk":n, "total":N, "collected":n}  — 청크 진행도
+    {"type":"done", "queries":[...], "cluster_results":[...], "total":n}  — 완료
     """
     targets = CM_CLUSTERS
     if cluster_ids:
@@ -162,33 +160,31 @@ def fetch_all_clusters(
     user_limit = params.get("limit", 100)
     has_cond   = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
 
-    logger.info("[fetch_all_clusters] query_type=%r conditions=%s has_cond=%s", query_type, conditions, bool(has_cond))
+    logger.info("[fetch] query_type=%r has_cond=%s", query_type, bool(has_cond))
 
-    # ── 조건 없음: 기존 단순 요청 ────────────────────────────────────────────
+    # ── 조건 없음: 단순 요청 ────────────────────────────────────────────────
     if not has_cond:
+        yield {"type": "progress", "chunk": 0, "total": 0, "collected": 0}
         all_queries    = []
         cluster_results = []
         for res in _fetch_parallel(targets, params):
             all_queries.extend(res["queries"])
-            cluster_results.append({
-                "cluster": res["cluster"],
-                "count":   len(res["queries"]),
-                "error":   res["error"],
-            })
+            cluster_results.append({"cluster": res["cluster"], "count": len(res["queries"]), "error": res["error"]})
         all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
-        return {
+        yield {
+            "type":            "done",
             "queries":         all_queries[:user_limit],
             "cluster_results": cluster_results,
             "total":           len(all_queries),
         }
+        return
 
-    # ── 조건 있음: 시간 커서 페이지네이션 ────────────────────────────────────
-    # CM 에 filter 를 보내면 CM 내부 스캔 한도에 걸려 극소수만 반환됨.
-    # 1시간 단위 청크로 나눠 filter 없이 CM 에 요청하고, Python 에서 필터링.
+    # ── 조건 있음: 1시간 청크 커서 페이지네이션 ──────────────────────────────
     now     = datetime.now(timezone.utc)
     from_dt = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
     to_dt   = _parse_dt(params["to"])   if params.get("to")   else now
 
+    total_chunks   = math.ceil((to_dt - from_dt).total_seconds() / 3600 / CURSOR_CHUNK_HOURS)
     collected      = []
     seen_ids       = set()
     cluster_counts = {t["id"]: 0 for t in targets}
@@ -200,7 +196,8 @@ def fetch_all_clusters(
         chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
         chunk_no  += 1
 
-        # filter 없이 해당 시간 범위 전체 수신
+        yield {"type": "progress", "chunk": chunk_no, "total": total_chunks, "collected": len(collected)}
+
         chunk_params = {
             "limit": CURSOR_CHUNK_LIMIT,
             "from":  chunk_from.isoformat(),
@@ -220,18 +217,31 @@ def fetch_all_clusters(
                     collected.append(q)
                     cluster_counts[res["cluster"]] += 1
 
-        logger.info("cursor chunk #%d  %s ~ %s  collected=%d", chunk_no, chunk_from.isoformat(), cursor_to.isoformat(), len(collected))
+        logger.info("cursor chunk #%d/%d  %s ~ %s  collected=%d",
+                    chunk_no, total_chunks, chunk_from.isoformat(), cursor_to.isoformat(), len(collected))
         cursor_to = chunk_from
 
     collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)
-
     cluster_results = [
         {"cluster": cid, "count": cluster_counts[cid], "error": cluster_errors[cid]}
         for cid in cluster_counts
     ]
-
-    return {
+    yield {
+        "type":            "done",
         "queries":         collected[:user_limit],
         "cluster_results": cluster_results,
         "total":           len(collected),
     }
+
+
+def fetch_all_clusters(
+    params: dict,
+    cluster_ids: list = None,
+    query_type: Optional[str] = None,
+    conditions: list = None,
+) -> dict:
+    """fetch_all_clusters_stream의 블로킹 래퍼 (test 엔드포인트용)."""
+    for event in fetch_all_clusters_stream(params, cluster_ids, query_type, conditions):
+        if event["type"] == "done":
+            return {k: v for k, v in event.items() if k != "type"}
+    return {"queries": [], "cluster_results": [], "total": 0}

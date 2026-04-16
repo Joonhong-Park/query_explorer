@@ -157,18 +157,20 @@ def fetch_all_clusters_stream(
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]
 
-    has_cond   = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
+    # user / keyword 조건이 있을 때만 청크 조회 (query_type만 있는 경우 단순 요청)
+    has_cond = any((c.get("value") or "").strip() for c in (conditions or []))
 
     logger.info("[fetch] query_type=%r has_cond=%s", query_type, bool(has_cond))
 
-    # ── 조건 없음: 단순 요청 ────────────────────────────────────────────────
+    # ── 조건 없음 (query_type만 있어도 해당): 단순 요청 ──────────────────────
     if not has_cond:
         yield {"type": "progress", "chunk": 0, "total": 0, "collected": 0}
         all_queries    = []
         cluster_results = []
         for res in _fetch_parallel(targets, {**params, "limit": CURSOR_CHUNK_LIMIT}):
-            all_queries.extend(res["queries"])
-            cluster_results.append({"cluster": res["cluster"], "count": len(res["queries"]), "error": res["error"]})
+            filtered = [q for q in res["queries"] if _matches_conditions(q, query_type, [])]
+            all_queries.extend(filtered)
+            cluster_results.append({"cluster": res["cluster"], "count": len(filtered), "error": res["error"]})
         all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
         yield {
             "type":            "done",

@@ -249,6 +249,13 @@
   </div>
 </div>
 
+<div class="cluster-tabs" id="cluster-tabs">
+  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
+    전체 <span class="tab-count" id="tab-count-all">-</span>
+  </div>
+  <span class="tab-summary" id="tab-summary"></span>
+</div>
+
 <div class="cluster-tabs" id="state-tabs">
   <div class="cluster-tab active" data-state="" onclick="selectStateTab(this)">
     전체 <span class="tab-count" id="stab-count-all">-</span>
@@ -262,13 +269,6 @@
   <div class="cluster-tab" data-state="EXCEPTION" onclick="selectStateTab(this)">
     <span class="s s-EXCEPTION">EXCEPTION</span> <span class="tab-count" id="stab-count-EXCEPTION">-</span>
   </div>
-</div>
-
-<div class="cluster-tabs" id="cluster-tabs">
-  <div class="cluster-tab active" data-cluster="" onclick="selectTab(this)">
-    전체 <span class="tab-count" id="tab-count-all">-</span>
-  </div>
-  <span class="tab-summary" id="tab-summary"></span>
 </div>
 
 <div class="table-wrap" id="table-wrap">

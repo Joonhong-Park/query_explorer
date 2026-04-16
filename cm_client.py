@@ -108,11 +108,21 @@ def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]
 
+    user_limit = params.get("limit", 100)
+
+    # 필터가 있을 때는 CM에 limit을 보내지 않아 매칭 결과 전체를 받고,
+    # 이후 우리 쪽에서 user_limit을 적용한다.
+    # (CM이 limit을 먼저 적용한 뒤 필터링하면 실제보다 적게 반환되는 문제 방지)
+    if params.get("filter"):
+        cm_params = {k: v for k, v in params.items() if k != "limit"}
+    else:
+        cm_params = params
+
     all_queries = []
     cluster_results = []
 
     with ThreadPoolExecutor(max_workers=max(1, len(targets))) as executor:
-        futures = {executor.submit(fetch_queries, c, params): c for c in targets}
+        futures = {executor.submit(fetch_queries, c, cm_params): c for c in targets}
         for future in as_completed(futures):
             result = future.result()
             all_queries.extend(result["queries"])
@@ -124,9 +134,8 @@ def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
 
     all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
 
-    limit = params.get("limit", len(all_queries))
     return {
-        "queries":         all_queries[:limit],
+        "queries":         all_queries[:user_limit],
         "cluster_results": cluster_results,
         "total":           len(all_queries),
     }

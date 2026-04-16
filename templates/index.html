@@ -1283,9 +1283,10 @@ function search() {
 
     if (ev.type === 'progress') {
       if (ev.total > 0) {
-        const pct = Math.round(ev.chunk / ev.total * 100);
+        const pct  = Math.round(ev.chunk / ev.total * 100);
+        const fmt  = iso => { const d = new Date(iso); const p = n => String(n).padStart(2,'0'); return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
         document.getElementById('table-wrap').innerHTML =
-          `<div class="loading">⏳ 청크 ${ev.chunk} / ${ev.total} 조회 중&nbsp;&nbsp;|&nbsp;&nbsp;수집: ${ev.collected}건&nbsp;&nbsp;(${pct}%)</div>`;
+          `<div class="loading">⏳ ${fmt(ev.chunk_from)} ~ ${fmt(ev.chunk_to)} 데이터 조회 중&nbsp;&nbsp;|&nbsp;&nbsp;수집: ${ev.collected}건&nbsp;&nbsp;(${pct}%)</div>`;
       }
 
     } else if (ev.type === 'done') {

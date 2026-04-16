@@ -196,7 +196,14 @@ def fetch_all_clusters_stream(
         chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
         chunk_no  += 1
 
-        yield {"type": "progress", "chunk": chunk_no, "total": total_chunks, "collected": len(collected)}
+        yield {
+            "type":       "progress",
+            "chunk":      chunk_no,
+            "total":      total_chunks,
+            "collected":  len(collected),
+            "chunk_from": chunk_from.isoformat(),
+            "chunk_to":   cursor_to.isoformat(),
+        }
 
         chunk_params = {
             "limit": CURSOR_CHUNK_LIMIT,

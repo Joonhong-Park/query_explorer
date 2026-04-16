@@ -282,6 +282,7 @@ window.onload = () => {
   addCond();
   setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
+  document.querySelectorAll('.f-state').forEach(cb => cb.addEventListener('change', applyTabFilter));
 };
 
 function addCond(value) {
@@ -347,9 +348,15 @@ function selectTab(el) {
 }
 
 function applyTabFilter() {
-  _rows = _activeCluster
-    ? _allRows.filter(q => q._cluster === _activeCluster)
-    : [..._allRows];
+  const checkedStates = new Set([...document.querySelectorAll('.f-state:checked')].map(c => c.value));
+  const totalStates   = document.querySelectorAll('.f-state').length;
+  const filterState   = checkedStates.size < totalStates;
+
+  _rows = _allRows.filter(q => {
+    if (_activeCluster && q._cluster !== _activeCluster) return false;
+    if (filterState && !checkedStates.has(q.queryState)) return false;
+    return true;
+  });
   renderTable(_rows);
   updateTabSummary();
 }
@@ -407,11 +414,6 @@ async function search() {
   const conds = getConditions();
   if (conds.length) params.set('conditions', JSON.stringify(conds));
   if (v('f-qtype'))   params.set('query_type', v('f-qtype'));
-
-  const checkedStates = [...document.querySelectorAll('.f-state:checked')].map(c => c.value);
-  const allStates     = [...document.querySelectorAll('.f-state')].map(c => c.value);
-  if (checkedStates.length > 0 && checkedStates.length < allStates.length)
-    params.set('query_state', checkedStates.join(','));
 
   if (v('f-from')) params.set('from_time', new Date(v('f-from')).toISOString());
   if (v('f-to'))   params.set('to_time',   new Date(v('f-to')).toISOString());

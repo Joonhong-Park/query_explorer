@@ -102,19 +102,45 @@ def fetch_queries(cluster: dict, params: dict) -> dict:
         return {"cluster": cluster["id"], "queries": [], "error": str(e)}
 
 
-def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
-    """전체(또는 선택된) 클러스터에서 병렬로 쿼리를 조회합니다."""
+def _matches_conditions(q: dict, query_type: Optional[str], conditions: list) -> bool:
+    """Python 사이드 필터 — CM 스캔 한도 우회용."""
+    if query_type and q.get("queryType") != query_type:
+        return False
+    for cond in conditions:
+        field = cond.get("field", "")
+        value = (cond.get("value") or "").strip()
+        if not value:
+            continue
+        if field == "user":
+            if q.get("user", "") != value:
+                return False
+        elif field == "keyword":
+            if value.lower() not in q.get("statement", "").lower():
+                return False
+    return True
+
+
+def fetch_all_clusters(
+    params: dict,
+    cluster_ids: list = None,
+    query_type: Optional[str] = None,
+    conditions: list = None,
+) -> dict:
+    """전체(또는 선택된) 클러스터에서 병렬로 쿼리를 조회합니다.
+
+    query_type / conditions 가 있으면 CM 에 필터를 보내지 않고 Python 에서 직접 필터링.
+    CM 은 필터 적용 시 내부 스캔 한도(scan limit)에 걸려 극소수만 반환하는 문제가 있음.
+    """
     targets = CM_CLUSTERS
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]
 
-    user_limit = params.get("limit", 100)
+    user_limit   = params.get("limit", 100)
+    has_cond     = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
 
-    # 필터가 있을 때는 CM에 충분히 큰 limit을 보내 매칭 결과를 최대한 확보하고,
-    # 이후 우리 쪽에서 user_limit을 적용한다.
-    # limit을 아예 제거하면 CM 내부 스캔 한도(scan limit)에 걸려 오히려 더 적게 반환됨.
-    if params.get("filter"):
-        cm_params = {**params, "limit": 5000}
+    if has_cond:
+        # CM 에 필터·limit 없이 요청 → 시간 범위 내 전체 수신 후 Python 필터링
+        cm_params = {k: v for k, v in params.items() if k not in ("filter", "limit")}
     else:
         cm_params = params
 
@@ -133,6 +159,9 @@ def fetch_all_clusters(params: dict, cluster_ids: list = None) -> dict:
             })
 
     all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
+
+    if has_cond:
+        all_queries = [q for q in all_queries if _matches_conditions(q, query_type, conditions or [])]
 
     return {
         "queries":         all_queries[:user_limit],

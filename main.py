@@ -88,19 +88,20 @@ async def get_queries(
             cond_list = _json.loads(conditions)
         except Exception:
             pass
-    filter_str       = build_filter(query_type, query_state, cond_list)
+
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
 
     params = {"limit": limit}
-    if filter_str: params["filter"] = filter_str
-    if from_iso:   params["from"]   = from_iso
-    if to_iso:     params["to"]     = to_iso
+    if from_iso: params["from"] = from_iso
+    if to_iso:   params["to"]   = to_iso
 
     cluster_ids = [c.strip() for c in clusters.split(",")] if clusters else None
 
     loop   = get_running_loop()
-    result = await loop.run_in_executor(None, fetch_all_clusters, params, cluster_ids)
-    result["filter_applied"] = filter_str
+    result = await loop.run_in_executor(
+        None, fetch_all_clusters, params, cluster_ids, query_type, cond_list
+    )
+    result["filter_applied"] = build_filter(query_type, query_state, cond_list)
     return result
 
 

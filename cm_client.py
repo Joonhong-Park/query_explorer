@@ -157,7 +157,6 @@ def fetch_all_clusters_stream(
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]
 
-    user_limit = params.get("limit", 100)
     has_cond   = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
 
     logger.info("[fetch] query_type=%r has_cond=%s", query_type, bool(has_cond))
@@ -167,13 +166,13 @@ def fetch_all_clusters_stream(
         yield {"type": "progress", "chunk": 0, "total": 0, "collected": 0}
         all_queries    = []
         cluster_results = []
-        for res in _fetch_parallel(targets, params):
+        for res in _fetch_parallel(targets, {**params, "limit": CURSOR_CHUNK_LIMIT}):
             all_queries.extend(res["queries"])
             cluster_results.append({"cluster": res["cluster"], "count": len(res["queries"]), "error": res["error"]})
         all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
         yield {
             "type":            "done",
-            "queries":         all_queries[:user_limit],
+            "queries":         all_queries,
             "cluster_results": cluster_results,
             "total":           len(all_queries),
         }
@@ -239,7 +238,7 @@ def fetch_all_clusters_stream(
     ]
     yield {
         "type":            "done",
-        "queries":         collected[:user_limit],
+        "queries":         collected,
         "cluster_results": cluster_results,
         "total":           len(collected),
     }

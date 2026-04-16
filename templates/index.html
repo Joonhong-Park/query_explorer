@@ -1032,15 +1032,6 @@ span.flatpickr-weekday {
         <option value="N/A">N/A</option>
       </select>
     </div>
-    <div class="fg">
-      <label>결과 수</label>
-      <select id="f-limit">
-        <option value="100" selected>100건</option>
-        <option value="300">300건</option>
-        <option value="500">500건</option>
-        <option value="1000">1000건</option>
-      </select>
-    </div>
     <div class="fg" style="justify-content:flex-end">
       <label>&nbsp;</label>
       <div style="display:flex;gap:6px;">
@@ -1302,7 +1293,6 @@ function search() {
   const selectedCluster = v('f-cluster');
   if (selectedCluster) params.set('clusters', selectedCluster);
 
-  params.set('limit', v('f-limit') || '100');
 
   const source = new EventSource(`/api/queries/stream?${params}`);
   _currentSource = source;

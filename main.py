@@ -86,7 +86,6 @@ async def get_queries(
     hours:       Optional[int] = Query(None),
     from_time:   Optional[str] = Query(None),
     to_time:     Optional[str] = Query(None),
-    limit:       int           = Query(100, ge=1, le=1000),
     clusters:    Optional[str] = Query(None),  # 쉼표 구분 cluster ID
 ):
     cond_list = []
@@ -98,7 +97,7 @@ async def get_queries(
 
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
 
-    params = {"limit": limit}
+    params = {}
     if from_iso: params["from"] = from_iso
     if to_iso:   params["to"]   = to_iso
 
@@ -112,7 +111,7 @@ async def get_queries(
     return result
 
 
-def _parse_query_params(conditions, query_state, query_type, hours, from_time, to_time, limit, clusters):
+def _parse_query_params(conditions, query_state, query_type, hours, from_time, to_time, clusters):
     cond_list = []
     if conditions:
         try:
@@ -120,7 +119,7 @@ def _parse_query_params(conditions, query_state, query_type, hours, from_time, t
         except Exception:
             pass
     from_iso, to_iso = resolve_time_range(hours, from_time, to_time)
-    params = {"limit": limit}
+    params = {}
     if from_iso: params["from"] = from_iso
     if to_iso:   params["to"]   = to_iso
     cluster_ids = [c.strip() for c in clusters.split(",")] if clusters else None
@@ -135,11 +134,10 @@ async def stream_queries(
     hours:       Optional[int] = Query(None),
     from_time:   Optional[str] = Query(None),
     to_time:     Optional[str] = Query(None),
-    limit:       int           = Query(100, ge=1, le=1000),
     clusters:    Optional[str] = Query(None),
 ):
     params, cluster_ids, cond_list = _parse_query_params(
-        conditions, query_state, query_type, hours, from_time, to_time, limit, clusters
+        conditions, query_state, query_type, hours, from_time, to_time, clusters
     )
     filter_applied = build_filter(query_type, query_state, cond_list)
     loop  = get_running_loop()

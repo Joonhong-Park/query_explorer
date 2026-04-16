@@ -83,21 +83,26 @@ def _forward_handler(local_sock, transport):
         local_sock.close()
         return
 
-    while True:
-        r, _, _ = select.select([local_sock, chan], [], [], 1.0)
-        if local_sock in r:
-            data = local_sock.recv(4096)
-            if not data:
-                break
-            chan.sendall(data)
-        if chan in r:
-            data = chan.recv(4096)
-            if not data:
-                break
-            local_sock.sendall(data)
-
-    chan.close()
-    local_sock.close()
+    try:
+        while True:
+            r, _, _ = select.select([local_sock, chan], [], [], 1.0)
+            if local_sock in r:
+                data = local_sock.recv(4096)
+                if not data:
+                    break
+                chan.sendall(data)
+            if chan in r:
+                data = chan.recv(4096)
+                if not data:
+                    break
+                local_sock.sendall(data)
+    except Exception:
+        pass  # transport shut down / saw EOF 등 — 조용히 종료
+    finally:
+        try: chan.close()
+        except Exception: pass
+        try: local_sock.close()
+        except Exception: pass
 
 
 class TunnelManager:
@@ -109,22 +114,43 @@ class TunnelManager:
     def connect(self, tunnel_server, tunnel_pw, node_pw):
         self.tunnel_client = paramiko.SSHClient()
         self.tunnel_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.tunnel_client.connect(
-            tunnel_server["host"], port=tunnel_server["port"],
-            username=tunnel_server["user"], password=tunnel_pw,
-            timeout=15,
-        )
+        try:
+            self.tunnel_client.connect(
+                tunnel_server["host"], port=tunnel_server["port"],
+                username=tunnel_server["user"], password=tunnel_pw,
+                timeout=15,
+            )
+        except EOFError:
+            raise RuntimeError(
+                f"터널 서버({tunnel_server['host']}) 연결 중 EOF — "
+                "서버가 연결을 거부했거나 네트워크가 불안정합니다."
+            )
 
-        ch = self.tunnel_client.get_transport().open_channel(
-            "direct-tcpip", (NODE_HOST, NODE_PORT), ("127.0.0.1", 0)
-        )
+        transport = self.tunnel_client.get_transport()
+        if transport is None or not transport.is_active():
+            raise RuntimeError(f"터널 서버({tunnel_server['host']}) transport 수립 실패")
+
+        try:
+            ch = transport.open_channel(
+                "direct-tcpip", (NODE_HOST, NODE_PORT), ("127.0.0.1", 0)
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"터널 → node1 채널 수립 실패 ({NODE_HOST}:{NODE_PORT}): {e}"
+            )
 
         self.node_client = paramiko.SSHClient()
         self.node_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.node_client.connect(
-            NODE_HOST, username=NODE_USER, password=node_pw,
-            sock=ch, timeout=15,
-        )
+        try:
+            self.node_client.connect(
+                NODE_HOST, username=NODE_USER, password=node_pw,
+                sock=ch, timeout=15,
+            )
+        except EOFError:
+            raise RuntimeError(
+                f"node1({NODE_HOST}) 연결 중 EOF — "
+                "node1 비밀번호를 확인하거나 잠시 후 다시 시도하세요."
+            )
 
         # keepalive: 30초마다 패킷 전송으로 세션 유지
         self.node_client.get_transport().set_keepalive(30)
@@ -326,8 +352,14 @@ class App(tk.Tk):
                 self.tunnel.connect(tunnel_server, tunnel_pw, node_pw)
                 time.sleep(0.5)
                 self.after(0, self._on_connected)
-            except Exception as ex:
+            except RuntimeError as ex:
                 self.after(0, lambda: self._on_error(str(ex)))
+            except paramiko.AuthenticationException:
+                self.after(0, lambda: self._on_error("인증 실패 — 비밀번호를 확인하세요."))
+            except (paramiko.SSHException, EOFError) as ex:
+                self.after(0, lambda: self._on_error(f"SSH 오류: {ex}"))
+            except Exception as ex:
+                self.after(0, lambda: self._on_error(f"연결 실패: {ex}"))
 
         threading.Thread(target=work, daemon=True).start()
 

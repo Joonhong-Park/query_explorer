@@ -1,4 +1,5 @@
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -37,7 +38,7 @@ def build_filter(
         if field == "user":
             parts.append(f'user = "{value}"')
         elif field == "keyword":
-            parts.append(f'statement rlike "(?i).*{value}.*"')
+            parts.append(f'statement rlike "(?i).*{re.escape(value)}.*"')
     if query_state:
         states = [s.strip() for s in query_state.split(",") if s.strip()]
         if len(states) == 1:

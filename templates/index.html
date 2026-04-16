@@ -175,27 +175,8 @@
       <input id="f-user" type="text" placeholder="username">
     </div>
     <div class="fg">
-      <label>키워드 rlike &nbsp;<button class="btn-add-cond" onclick="addCond()">+ 추가</button></label>
+      <label>검색 조건 &nbsp;<button class="btn-add-cond" onclick="addCond()">+ 추가</button></label>
       <div class="cond-area" id="cond-area"></div>
-    </div>
-    <div class="fg">
-      <label>Query Type</label>
-      <select id="f-qtype">
-        <option value="QUERY" selected>QUERY</option>
-        <option value="SET">SET</option>
-        <option value="DDL">DDL</option>
-        <option value="N/A">N/A</option>
-      </select>
-    </div>
-  </div>
-  <div class="filter-row">
-    <div class="fg">
-      <label>상태</label>
-      <div class="state-checks">
-        <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
-        <label><input type="checkbox" class="f-state" value="RUNNING"   checked> <span class="s s-RUNNING">RUNNING</span></label>
-        <label><input type="checkbox" class="f-state" value="EXCEPTION" checked> <span class="s s-EXCEPTION">EXCEPTION</span></label>
-      </div>
     </div>
     <div class="fg">
       <label>빠른 범위</label>
@@ -227,6 +208,15 @@
       </select>
     </div>
     <div class="fg">
+      <label>Query Type</label>
+      <select id="f-qtype">
+        <option value="QUERY" selected>QUERY</option>
+        <option value="SET">SET</option>
+        <option value="DDL">DDL</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+    <div class="fg">
       <label>결과 수</label>
       <select id="f-limit">
         <option value="100" selected>100건</option>
@@ -234,6 +224,14 @@
         <option value="500">500건</option>
         <option value="1000">1000건</option>
       </select>
+    </div>
+    <div class="fg">
+      <label>상태</label>
+      <div class="state-checks">
+        <label><input type="checkbox" class="f-state" value="FINISHED"  checked> <span class="s s-FINISHED">FINISHED</span></label>
+        <label><input type="checkbox" class="f-state" value="RUNNING"   checked> <span class="s s-RUNNING">RUNNING</span></label>
+        <label><input type="checkbox" class="f-state" value="EXCEPTION" checked> <span class="s s-EXCEPTION">EXCEPTION</span></label>
+      </div>
     </div>
     <div class="fg" style="justify-content:flex-end">
       <label>&nbsp;</label>
@@ -281,6 +279,7 @@ const COLS = [
 ];
 
 window.onload = () => {
+  addCond();
   setPreset(1, document.querySelector('.preset-btn.active'));
   loadClusters();
 };
@@ -291,8 +290,9 @@ function addCond(value) {
   const row  = document.createElement('div');
   row.className = 'cond-row';
   row.id        = `cond-row-${id}`;
+  const isFirst = area.children.length === 0;
   row.innerHTML = `
-    <span class="cond-and-label">AND</span>
+    <span class="cond-and-label"${isFirst ? ' style="display:none"' : ''}>AND</span>
     <input class="cond-value" id="cond-val-${id}" type="text"
       placeholder="table, 키워드 등"
       value="${esc(value||'')}">
@@ -445,6 +445,7 @@ function reset() {
   document.getElementById('f-user').value = '';
   document.getElementById('cond-area').innerHTML = '';
   _condCount = 0;
+  addCond();
   ['f-from','f-to'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-qtype').value = 'QUERY';
   document.querySelectorAll('.f-state').forEach(c => c.checked = true);

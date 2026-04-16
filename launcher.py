@@ -25,9 +25,10 @@ import paramiko
 from cryptography.fernet import Fernet, InvalidToken
 
 # ── 서버 설정 (실제 값으로 변경 후 빌드) ─────────────────────────────────────
-TUNNEL_HOST = "tunnel_server"
-TUNNEL_PORT = 22
-TUNNEL_USER = "tunnel_user"
+TUNNEL_SERVERS = [
+    {"label": "터널 서버 1", "host": "tunnel_server1", "port": 22, "user": "tunnel_user1"},
+    {"label": "터널 서버 2", "host": "tunnel_server2", "port": 22, "user": "tunnel_user2"},
+]
 
 NODE_HOST   = "node1"
 NODE_PORT   = 22
@@ -56,9 +57,9 @@ def load_credentials() -> dict:
         return {}
 
 
-def save_credentials(tunnel_pw: str, node_pw: str):
+def save_credentials(tunnel_pw: str, node_pw: str, tunnel_idx: int = 0):
     CRED_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = json.dumps({"tunnel_pw": tunnel_pw, "node_pw": node_pw}).encode()
+    data = json.dumps({"tunnel_pw": tunnel_pw, "node_pw": node_pw, "tunnel_idx": tunnel_idx}).encode()
     CRED_PATH.write_bytes(_fernet().encrypt(data))
 
 
@@ -105,12 +106,12 @@ class TunnelManager:
         self.node_client   = None
         self._stop         = threading.Event()
 
-    def connect(self, tunnel_pw, node_pw):
+    def connect(self, tunnel_server, tunnel_pw, node_pw):
         self.tunnel_client = paramiko.SSHClient()
         self.tunnel_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.tunnel_client.connect(
-            TUNNEL_HOST, port=TUNNEL_PORT,
-            username=TUNNEL_USER, password=tunnel_pw,
+            tunnel_server["host"], port=tunnel_server["port"],
+            username=tunnel_server["user"], password=tunnel_pw,
             timeout=15,
         )
 
@@ -194,13 +195,31 @@ class App(tk.Tk):
         tk.Label(self, text="⚡ Query Explorer", bg=BG, fg=ACCENT,
                  font=("Segoe UI", 15, "bold")).pack(pady=(24, 2))
         tk.Label(self, text="SSH 터널 연결", bg=BG, fg="#666",
-                 font=("Segoe UI", 9)).pack(pady=(0, 18))
+                 font=("Segoe UI", 9)).pack(pady=(0, 10))
+
+        # 터널 서버 선택 라디오 버튼
+        self._tunnel_var = tk.IntVar(value=0)
+        radio_frame = tk.Frame(self, bg=BG)
+        radio_frame.pack(padx=36, fill="x", pady=(0, 12))
+        tk.Label(radio_frame, text="터널 서버 선택", bg=BG, fg="#aaa",
+                 font=("Segoe UI", 9)).pack(anchor="w")
+        btn_row = tk.Frame(radio_frame, bg=BG)
+        btn_row.pack(fill="x")
+        for i, srv in enumerate(TUNNEL_SERVERS):
+            tk.Radiobutton(
+                btn_row, text=f"{srv['label']}  ({srv['user']}@{srv['host']})",
+                variable=self._tunnel_var, value=i,
+                bg=BG, fg="#ccc", selectcolor=ENTRY_BG,
+                activebackground=BG, activeforeground=FG,
+                font=("Segoe UI", 9),
+                command=self._on_tunnel_select,
+            ).pack(side="left", padx=(0, 16))
 
         frame = tk.Frame(self, bg=BG)
         frame.pack(padx=36)
 
         self.e_tunnel_pw = self._entry_row(
-            frame, f"터널링 서버 비밀번호  ({TUNNEL_USER}@{TUNNEL_HOST})"
+            frame, f"터널링 서버 비밀번호"
         )
         self.e_node_pw = self._entry_row(
             frame, f"node1 비밀번호  ({NODE_USER}@{NODE_HOST})"
@@ -247,11 +266,16 @@ class App(tk.Tk):
         e.pack(pady=(3, 12), ipady=6)
         return e
 
+    def _on_tunnel_select(self):
+        pass  # 라디오 버튼 선택 시 추가 동작 필요시 여기에
+
     def _load_saved(self):
         creds = load_credentials()
         if creds.get("tunnel_pw") and creds.get("node_pw"):
             self.e_tunnel_pw.insert(0, creds["tunnel_pw"])
             self.e_node_pw.insert(0, creds["node_pw"])
+            if creds.get("tunnel_idx") is not None:
+                self._tunnel_var.set(creds["tunnel_idx"])
             self._save_var.set(True)
             self._btn_clear.pack(side="right", padx=(8, 0))
             self._btn_clear_visible = True
@@ -270,6 +294,7 @@ class App(tk.Tk):
         self._btn_clear_visible = False
         self.e_tunnel_pw.delete(0, "end")
         self.e_node_pw.delete(0, "end")
+        self._tunnel_var.set(0)
         self._set_status("저장된 비밀번호를 삭제했습니다", "#888")
 
     def _connect(self):
@@ -284,18 +309,21 @@ class App(tk.Tk):
             messagebox.showwarning("입력 오류", "비밀번호를 모두 입력해주세요.")
             return
 
+        tunnel_idx = self._tunnel_var.get()
+        tunnel_server = TUNNEL_SERVERS[tunnel_idx]
+
         if self._save_var.get():
-            save_credentials(tunnel_pw, node_pw)
+            save_credentials(tunnel_pw, node_pw, tunnel_idx)
             if not self._btn_clear_visible:
                 self._btn_clear.pack(side="right", padx=(8, 0))
                 self._btn_clear_visible = True
 
         self.btn.config(state="disabled", text="연결 중...")
-        self._set_status("터널링 서버에 연결 중...", "#ffa726")
+        self._set_status(f"[{tunnel_server['label']}] 연결 중...", "#ffa726")
 
         def work():
             try:
-                self.tunnel.connect(tunnel_pw, node_pw)
+                self.tunnel.connect(tunnel_server, tunnel_pw, node_pw)
                 time.sleep(0.5)
                 self.after(0, self._on_connected)
             except Exception as ex:

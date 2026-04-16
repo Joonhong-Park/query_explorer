@@ -153,7 +153,7 @@ def fetch_all_clusters(
     조건이 있으면 시간 커서 페이지네이션으로 CM 스캔 한도를 우회:
       - 전체 시간 범위를 CURSOR_CHUNK_HOURS 단위로 최신 → 과거 순으로 분할 요청
       - 각 청크에 CM 필터 적용 (좁은 범위라 스캔 한도에 걸리지 않음)
-      - Python에서 재검증 후 user_limit 건수가 모이면 중단
+      - Python에서 재검증 후 전체 범위 스캔 완료 후 user_limit 적용
     """
     targets = CM_CLUSTERS
     if cluster_ids:

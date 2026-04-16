@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 # 커서 페이지네이션 설정
-CURSOR_CHUNK_HOURS = 0.5  # 커서 방식에서 한 번에 요청하는 시간 범위 (시간)
+CURSOR_CHUNK_HOURS = 10 / 60  # 커서 방식에서 한 번에 요청하는 시간 범위 (10분)
 CURSOR_CHUNK_LIMIT = 1000 # 커서 방식에서 CM에 보내는 limit
 
 

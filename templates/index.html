@@ -367,20 +367,24 @@ function applyTabFilter() {
     if (_activeState   && q.queryState !== _activeState)  return false;
     return true;
   });
+  updateTabCounts();
   renderTable(_rows);
   updateTabSummary();
 }
 
 function updateTabCounts() {
+  // 클러스터 탭 건수: 현재 상태 필터 기준
+  const clusterBase = _activeState ? _allRows.filter(q => q.queryState === _activeState) : _allRows;
+  // 상태 탭 건수: 현재 클러스터 필터 기준
+  const stateBase   = _activeCluster ? _allRows.filter(q => q._cluster === _activeCluster) : _allRows;
+
   const clusterCounts = {};
   const stateCounts   = {};
-  _allRows.forEach(q => {
-    clusterCounts[q._cluster]  = (clusterCounts[q._cluster]  || 0) + 1;
-    stateCounts[q.queryState]  = (stateCounts[q.queryState]  || 0) + 1;
-  });
+  clusterBase.forEach(q => { clusterCounts[q._cluster] = (clusterCounts[q._cluster] || 0) + 1; });
+  stateBase.forEach(q =>   { stateCounts[q.queryState] = (stateCounts[q.queryState] || 0) + 1; });
 
-  document.getElementById('tab-count-all').textContent  = _allRows.length;
-  document.getElementById('stab-count-all').textContent = _allRows.length;
+  document.getElementById('tab-count-all').textContent  = clusterBase.length;
+  document.getElementById('stab-count-all').textContent = stateBase.length;
   document.querySelectorAll('.cluster-tab[data-cluster]').forEach(tab => {
     const c = tab.dataset.cluster;
     if (!c) return;

@@ -192,7 +192,9 @@ def fetch_all_clusters(
     cluster_errors = {t["id"]: None for t in targets}
     cursor_to      = to_dt
 
-    while len(collected) < user_limit and cursor_to > from_dt:
+    # 전체 시간 범위를 끝까지 스캔한 뒤 user_limit 적용
+    # (중간에 limit이 채워져도 멈추지 않아야 범위 내 가장 최신 N건을 보장)
+    while cursor_to > from_dt:
         chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
 
         chunk_params = {
@@ -217,9 +219,8 @@ def fetch_all_clusters(
                     cluster_counts[res["cluster"]] += 1
 
         logger.debug(
-            "cursor chunk %s ~ %s  collected=%d/%d",
-            chunk_from.isoformat(), cursor_to.isoformat(),
-            len(collected), user_limit,
+            "cursor chunk %s ~ %s  collected=%d",
+            chunk_from.isoformat(), cursor_to.isoformat(), len(collected),
         )
         cursor_to = chunk_from
 

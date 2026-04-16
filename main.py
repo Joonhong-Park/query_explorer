@@ -39,11 +39,17 @@ systemd 서비스 등록 (node1에서 root 또는 sudo 권한으로 실행)
 ────────────────────────────────────────────────────────────────────────────
 """
 
+import logging
 from asyncio import get_running_loop
 from pathlib import Path
 from typing import Optional
 
 import json as _json
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 import requests as _requests
 from requests.auth import HTTPBasicAuth

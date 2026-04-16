@@ -21,7 +21,6 @@
   .fg label { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
   .fg input[type="text"],
   .fg input[type="date"],
-  .fg input[type="time"],
   .fg select {
     background: #1e2130; border: 1px solid #2e3148; color: #e0e0e0;
     padding: 5px 8px; border-radius: 4px; font-size: 12px; height: 30px;
@@ -29,7 +28,7 @@
   }
   .fg input[type="text"] { min-width: 150px; }
   .fg input[type="date"] { min-width: 120px; }
-  .fg input[type="time"] { min-width: 72px; }
+  .fg input.time-text { min-width: 58px; width: 58px; font-variant-numeric: tabular-nums; }
   .fg select { min-width: 110px; }
   .fg .dt-pair { display: flex; gap: 4px; }
   .fg input:focus, .fg select:focus { outline: none; border-color: #5b7fe0; }
@@ -215,14 +214,14 @@
       <label>시작 일시</label>
       <div class="dt-pair">
         <input id="f-from-date" type="date" oninput="clearPreset()">
-        <input id="f-from-time" type="time" oninput="clearPreset()">
+        <input id="f-from-time" type="text" class="time-text" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);clearPreset()">
       </div>
     </div>
     <div class="fg">
       <label>종료 일시</label>
       <div class="dt-pair">
         <input id="f-to-date" type="date" oninput="clearPreset()">
-        <input id="f-to-time" type="time" oninput="clearPreset()">
+        <input id="f-to-time" type="text" class="time-text" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);clearPreset()">
       </div>
     </div>
   </div>
@@ -444,6 +443,13 @@ function updateTabSummary() {
 
 function clearPreset() {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+function formatTimeInput(el) {
+  // 숫자만 남기고 자동으로 HH:MM 형식 완성
+  let val = el.value.replace(/[^0-9]/g, '');
+  if (val.length >= 3) val = val.slice(0,2) + ':' + val.slice(2,4);
+  el.value = val;
 }
 
 function setPreset(hours, btn) {

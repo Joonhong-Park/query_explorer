@@ -181,29 +181,29 @@ def fetch_all_clusters(
         }
 
     # ── 조건 있음: 시간 커서 페이지네이션 ────────────────────────────────────
-    now      = datetime.now(timezone.utc)
-    from_dt  = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
-    to_dt    = _parse_dt(params["to"])   if params.get("to")   else now
-    filter_str = build_filter(query_type, None, conditions)
+    # CM 에 filter 를 보내면 CM 내부 스캔 한도에 걸려 극소수만 반환됨.
+    # 1시간 단위 청크로 나눠 filter 없이 CM 에 요청하고, Python 에서 필터링.
+    now     = datetime.now(timezone.utc)
+    from_dt = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
+    to_dt   = _parse_dt(params["to"])   if params.get("to")   else now
 
     collected      = []
     seen_ids       = set()
     cluster_counts = {t["id"]: 0 for t in targets}
     cluster_errors = {t["id"]: None for t in targets}
     cursor_to      = to_dt
+    chunk_no       = 0
 
-    # 전체 시간 범위를 끝까지 스캔한 뒤 user_limit 적용
-    # (중간에 limit이 채워져도 멈추지 않아야 범위 내 가장 최신 N건을 보장)
     while cursor_to > from_dt:
         chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
+        chunk_no  += 1
 
+        # filter 없이 해당 시간 범위 전체 수신
         chunk_params = {
             "limit": CURSOR_CHUNK_LIMIT,
             "from":  chunk_from.isoformat(),
             "to":    cursor_to.isoformat(),
         }
-        if filter_str:
-            chunk_params["filter"] = filter_str
 
         for res in _fetch_parallel(targets, chunk_params):
             if res["error"]:
@@ -218,9 +218,9 @@ def fetch_all_clusters(
                     collected.append(q)
                     cluster_counts[res["cluster"]] += 1
 
-        logger.debug(
-            "cursor chunk %s ~ %s  collected=%d",
-            chunk_from.isoformat(), cursor_to.isoformat(), len(collected),
+        logger.info(
+            "cursor chunk #%d  %s ~ %s  collected=%d",
+            chunk_no, chunk_from.isoformat(), cursor_to.isoformat(), len(collected),
         )
         cursor_to = chunk_from
 

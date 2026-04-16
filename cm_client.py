@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
+# 커서 페이지네이션 설정
+CURSOR_CHUNK_HOURS = 6    # 커서 방식에서 한 번에 요청하는 시간 범위 (시간)
+CURSOR_CHUNK_LIMIT = 1000 # 커서 방식에서 CM에 보내는 limit
+
 
 def build_filter(
     query_type: Optional[str] = None,   # QUERY / SET / DDL / N/A
@@ -67,6 +71,31 @@ def resolve_time_range(
     return (now - timedelta(hours=h)).isoformat(), now.isoformat()
 
 
+def _parse_dt(s: str) -> datetime:
+    """ISO8601 문자열 → timezone-aware datetime."""
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    return datetime.fromisoformat(s)
+
+
+def _matches_conditions(q: dict, query_type: Optional[str], conditions: list) -> bool:
+    """Python 사이드 필터 매칭."""
+    if query_type and q.get("queryType") != query_type:
+        return False
+    for cond in conditions:
+        field = cond.get("field", "")
+        value = (cond.get("value") or "").strip()
+        if not value:
+            continue
+        if field == "user":
+            if q.get("user", "") != value:
+                return False
+        elif field == "keyword":
+            if value.lower() not in q.get("statement", "").lower():
+                return False
+    return True
+
+
 def fetch_queries(cluster: dict, params: dict) -> dict:
     """단일 클러스터에서 impalaQueries API를 호출합니다."""
     url = (
@@ -102,22 +131,14 @@ def fetch_queries(cluster: dict, params: dict) -> dict:
         return {"cluster": cluster["id"], "queries": [], "error": str(e)}
 
 
-def _matches_conditions(q: dict, query_type: Optional[str], conditions: list) -> bool:
-    """Python 사이드 필터 — CM 스캔 한도 우회용."""
-    if query_type and q.get("queryType") != query_type:
-        return False
-    for cond in conditions:
-        field = cond.get("field", "")
-        value = (cond.get("value") or "").strip()
-        if not value:
-            continue
-        if field == "user":
-            if q.get("user", "") != value:
-                return False
-        elif field == "keyword":
-            if value.lower() not in q.get("statement", "").lower():
-                return False
-    return True
+def _fetch_parallel(targets: list, params: dict) -> list[dict]:
+    """여러 클러스터에 동일한 params로 병렬 요청."""
+    results = []
+    with ThreadPoolExecutor(max_workers=max(1, len(targets))) as executor:
+        futures = {executor.submit(fetch_queries, c, params): c for c in targets}
+        for future in as_completed(futures):
+            results.append(future.result())
+    return results
 
 
 def fetch_all_clusters(
@@ -126,45 +147,91 @@ def fetch_all_clusters(
     query_type: Optional[str] = None,
     conditions: list = None,
 ) -> dict:
-    """전체(또는 선택된) 클러스터에서 병렬로 쿼리를 조회합니다.
+    """전체(또는 선택된) 클러스터에서 쿼리를 조회합니다.
 
-    query_type / conditions 가 있으면 CM 에 필터를 보내지 않고 Python 에서 직접 필터링.
-    CM 은 필터 적용 시 내부 스캔 한도(scan limit)에 걸려 극소수만 반환하는 문제가 있음.
+    조건(query_type / conditions)이 없으면 CM에 그대로 요청.
+    조건이 있으면 시간 커서 페이지네이션으로 CM 스캔 한도를 우회:
+      - 전체 시간 범위를 CURSOR_CHUNK_HOURS 단위로 최신 → 과거 순으로 분할 요청
+      - 각 청크에 CM 필터 적용 (좁은 범위라 스캔 한도에 걸리지 않음)
+      - Python에서 재검증 후 user_limit 건수가 모이면 중단
     """
     targets = CM_CLUSTERS
     if cluster_ids:
         targets = [c for c in CM_CLUSTERS if c["id"] in cluster_ids]
 
-    user_limit   = params.get("limit", 100)
-    has_cond     = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
+    user_limit = params.get("limit", 100)
+    has_cond   = query_type or any((c.get("value") or "").strip() for c in (conditions or []))
 
-    if has_cond:
-        # CM 에 필터·limit 없이 요청 → 시간 범위 내 전체 수신 후 Python 필터링
-        cm_params = {k: v for k, v in params.items() if k not in ("filter", "limit")}
-    else:
-        cm_params = params
-
-    all_queries = []
-    cluster_results = []
-
-    with ThreadPoolExecutor(max_workers=max(1, len(targets))) as executor:
-        futures = {executor.submit(fetch_queries, c, cm_params): c for c in targets}
-        for future in as_completed(futures):
-            result = future.result()
-            all_queries.extend(result["queries"])
+    # ── 조건 없음: 기존 단순 요청 ────────────────────────────────────────────
+    if not has_cond:
+        all_queries    = []
+        cluster_results = []
+        for res in _fetch_parallel(targets, params):
+            all_queries.extend(res["queries"])
             cluster_results.append({
-                "cluster": result["cluster"],
-                "count":   len(result["queries"]),
-                "error":   result["error"],
+                "cluster": res["cluster"],
+                "count":   len(res["queries"]),
+                "error":   res["error"],
             })
+        all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
+        return {
+            "queries":         all_queries[:user_limit],
+            "cluster_results": cluster_results,
+            "total":           len(all_queries),
+        }
 
-    all_queries.sort(key=lambda q: q.get("startTime", ""), reverse=True)
+    # ── 조건 있음: 시간 커서 페이지네이션 ────────────────────────────────────
+    now      = datetime.now(timezone.utc)
+    from_dt  = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
+    to_dt    = _parse_dt(params["to"])   if params.get("to")   else now
+    filter_str = build_filter(query_type, None, conditions)
 
-    if has_cond:
-        all_queries = [q for q in all_queries if _matches_conditions(q, query_type, conditions or [])]
+    collected      = []
+    seen_ids       = set()
+    cluster_counts = {t["id"]: 0 for t in targets}
+    cluster_errors = {t["id"]: None for t in targets}
+    cursor_to      = to_dt
+
+    while len(collected) < user_limit and cursor_to > from_dt:
+        chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
+
+        chunk_params = {
+            "limit": CURSOR_CHUNK_LIMIT,
+            "from":  chunk_from.isoformat(),
+            "to":    cursor_to.isoformat(),
+        }
+        if filter_str:
+            chunk_params["filter"] = filter_str
+
+        for res in _fetch_parallel(targets, chunk_params):
+            if res["error"]:
+                cluster_errors[res["cluster"]] = res["error"]
+            for q in res["queries"]:
+                qid = q.get("queryId")
+                if qid and qid in seen_ids:
+                    continue
+                if qid:
+                    seen_ids.add(qid)
+                if _matches_conditions(q, query_type, conditions):
+                    collected.append(q)
+                    cluster_counts[res["cluster"]] += 1
+
+        logger.debug(
+            "cursor chunk %s ~ %s  collected=%d/%d",
+            chunk_from.isoformat(), cursor_to.isoformat(),
+            len(collected), user_limit,
+        )
+        cursor_to = chunk_from
+
+    collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)
+
+    cluster_results = [
+        {"cluster": cid, "count": cluster_counts[cid], "error": cluster_errors[cid]}
+        for cid in cluster_counts
+    ]
 
     return {
-        "queries":         all_queries[:user_limit],
+        "queries":         collected[:user_limit],
         "cluster_results": cluster_results,
-        "total":           len(all_queries),
+        "total":           len(collected),
     }

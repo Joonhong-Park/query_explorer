@@ -1466,12 +1466,14 @@ document.addEventListener('keydown', e => {
 flatpickr('#f-from', {
   enableTime: true,
   time_24hr: true,
+  minuteIncrement: 1,
   dateFormat: 'Y-m-d H:i',
   onChange: function() { clearPreset(); }
 });
 flatpickr('#f-to', {
   enableTime: true,
   time_24hr: true,
+  minuteIncrement: 1,
   dateFormat: 'Y-m-d H:i',
   onChange: function() { clearPreset(); }
 });

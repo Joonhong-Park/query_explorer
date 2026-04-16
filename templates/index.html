@@ -87,7 +87,21 @@
   .tab-summary { margin-left: auto; padding: 0 4px; font-size: 11px; color: #555; align-self: center; white-space: nowrap; }
 
   /* ── 테이블 ── */
-  .table-wrap { overflow: auto; height: calc(100vh - 220px); }
+  .table-wrap { overflow: auto; height: calc(100vh - 258px); }
+
+  /* ── 페이지네이션 ── */
+  .pagination {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #0d0f16; border-top: 1px solid #2a2d3e;
+    padding: 6px 20px; height: 38px;
+  }
+  .page-btn {
+    background: #1e2130; border: 1px solid #2e3148; color: #aaa;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 13px;
+  }
+  .page-btn:hover:not(:disabled) { background: #3d5afe; color: #fff; border-color: #3d5afe; }
+  .page-btn:disabled { opacity: 0.3; cursor: default; }
+  .page-info { font-size: 12px; color: #666; }
   table { width: 100%; border-collapse: collapse; }
   thead th {
     background: #13161f; color: #888; text-align: left;
@@ -260,6 +274,7 @@
 <div class="table-wrap" id="table-wrap">
   <div class="empty">검색 조건을 입력하고 검색하세요</div>
 </div>
+<div class="pagination" id="pagination"></div>
 
 <script>
 let _allRows       = [];
@@ -270,6 +285,8 @@ let _activeCluster = '';
 let _activeState   = '';
 let _openRows      = new Set(); // 펼쳐진 행의 queryId
 let _condCount     = 0;
+let _page          = 0;
+const PAGE_SIZE    = 200;
 
 const COLS = [
   { key: '_toggle',          label: '',              cls: 'c-toggle',    sort: false },
@@ -367,6 +384,7 @@ function applyTabFilter() {
     if (_activeState   && q.queryState !== _activeState)  return false;
     return true;
   });
+  _page = 0;
   updateTabCounts();
   renderTable(_rows);
   updateTabSummary();
@@ -477,7 +495,7 @@ function reset() {
   document.getElementById('f-cluster').value = '';
   setPreset(1, document.querySelector('.preset-btn'));
   document.getElementById('table-wrap').innerHTML = '<div class="empty">검색 조건을 입력하고 검색하세요</div>';
-  _allRows = []; _rows = []; _openRows = new Set(); _activeCluster = ''; _activeState = '';
+  _allRows = []; _rows = []; _openRows = new Set(); _activeCluster = ''; _activeState = ''; _page = 0;
   selectStateTab(document.querySelector('#state-tabs .cluster-tab[data-state=""]'));
   selectTab(document.querySelector('.cluster-tab[data-cluster=""]'));
   updateTabCounts();
@@ -492,26 +510,34 @@ function sortBy(col) {
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * _sortDir;
     return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
   });
+  _page = 0;
   renderTable(_rows);
 }
 
 function renderTable(rows) {
   if (!rows.length) {
     document.getElementById('table-wrap').innerHTML = '<div class="empty">결과가 없습니다</div>';
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
 
-  const colCount = COLS.length;
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+  if (_page >= totalPages) _page = totalPages - 1;
+  const start     = _page * PAGE_SIZE;
+  const pageRows  = rows.slice(start, start + PAGE_SIZE);
+  const colCount  = COLS.length;
+
   const thead = '<thead><tr>' + COLS.map(c => {
     if (!c.sort) return `<th class="no-sort">${c.label}</th>`;
     const cls = ['sortable', _sortCol === c.key ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : ''].join(' ').trim();
     return `<th class="${cls}" onclick="sortBy('${c.key}')">${c.label}</th>`;
   }).join('') + '</tr></thead>';
 
-  const tbody = rows.map((q, i) => {
-    const stmt          = q.statement                   ?? '';
-    const errMsg        = q.attributes?.query_status    ?? '';
-    const connUser      = q.attributes?.connected_user  ?? '';
+  const tbody = pageRows.map((q, localIdx) => {
+    const i        = start + localIdx; // _rows 전체 기준 인덱스
+    const stmt     = q.statement                ?? '';
+    const errMsg   = q.attributes?.query_status ?? '';
+    const connUser = q.attributes?.connected_user ?? '';
 
     const cells = COLS.map(c => {
       const val = q[c.key] ?? '';
@@ -530,8 +556,7 @@ function renderTable(rows) {
       if (c.key === 'startTime' || c.key === 'endTime')
         return `<td class="c-time">${fmtTime(val)}</td>`;
       if (c.key === 'statement') {
-        const s = esc(stmt);
-        return `<td class="c-stmt"><span class="stmt-text">${s}</span></td>`;
+        return `<td class="c-stmt"><span class="stmt-text">${esc(stmt)}</span></td>`;
       }
       if (c.key === 'queryStatus') {
         const v = esc(errMsg);
@@ -551,8 +576,9 @@ function renderTable(rows) {
   document.getElementById('table-wrap').innerHTML =
     `<table>${thead}<tbody>${tbody}</tbody></table>`;
 
-  // 정렬/탭 전환 후 열려있던 행 복원 (lazy 렌더링 포함)
-  rows.forEach((q, i) => {
+  // 열려있던 행 복원 (현재 페이지 범위만)
+  pageRows.forEach((q, localIdx) => {
+    const i = start + localIdx;
     if (_openRows.has(q.queryId)) {
       _fillDetail(i, q);
       const row = document.getElementById(`drow-${i}`);
@@ -560,6 +586,23 @@ function renderTable(rows) {
       if (row) { row.style.display = ''; btn.textContent = '▼'; btn.classList.add('open'); }
     }
   });
+
+  // 페이지네이션 컨트롤
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  const from = start + 1;
+  const to   = Math.min(start + PAGE_SIZE, rows.length);
+  pag.innerHTML = `
+    <button class="page-btn" onclick="goPage(${_page - 1})" ${_page === 0 ? 'disabled' : ''}>‹ 이전</button>
+    <span class="page-info">${from}–${to} / ${rows.length}건 &nbsp;(${_page + 1} / ${totalPages}페이지)</span>
+    <button class="page-btn" onclick="goPage(${_page + 1})" ${_page >= totalPages - 1 ? 'disabled' : ''}>다음 ›</button>
+  `;
+}
+
+function goPage(n) {
+  _page = n;
+  renderTable(_rows);
+  document.getElementById('table-wrap').scrollTop = 0;
 }
 
 function _fillDetail(i, q) {

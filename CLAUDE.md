@@ -177,7 +177,7 @@ GET /api/{api_version}/clusters/{CM_CLUSTER_NAME}/services/impala/impalaQueries/
 - **검색 조건 빌더**: `+ 추가`로 키워드 rlike 조건 블록을 가로로 추가. 기본 1개 활성화. 첫 번째 블록은 AND 레이블 숨김. `conditions` JSON의 `field=keyword`로 전송
 - Query Type 기본값: **QUERY** (초기화 시에도 QUERY로 복원)
 - 빠른 범위 기본값: **1h**
-- 빠른 범위 버튼: 1h / 6h / 12h / 24h / 3d / 7d / 15d / 30d
+- 빠른 범위 버튼: 1h / 3h / 6h / 12h / 1d
 
 ### 테이블 컬럼
 | 컬럼 | 소스 필드 | 정렬 |

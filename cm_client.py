@@ -1,6 +1,8 @@
 import logging
 import math
+import queue
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Generator, Optional
@@ -15,8 +17,9 @@ logger = logging.getLogger(__name__)
 requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 # 커서 페이지네이션 설정
-CURSOR_CHUNK_HOURS = 3 / 60   # 커서 방식에서 한 번에 요청하는 시간 범위 (3분)
-CURSOR_CHUNK_LIMIT = 1000 # 커서 방식에서 CM에 보내는 limit
+CURSOR_CHUNK_HOURS  = 3 / 60  # 한 번에 요청하는 시간 범위 (3분)
+CURSOR_CHUNK_LIMIT  = 1000    # CM에 보내는 limit
+CHUNKS_PER_CLUSTER  = 5       # 클러스터당 동시 조회 청크 수
 
 
 def build_filter(
@@ -180,62 +183,97 @@ def fetch_all_clusters_stream(
         }
         return
 
-    # ── 조건 있음: 1시간 청크 커서 페이지네이션 ──────────────────────────────
+    # ── 조건 있음: 클러스터당 CHUNKS_PER_CLUSTER 청크 병렬 조회 ──────────────
     now     = datetime.now(timezone.utc)
     from_dt = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
     to_dt   = _parse_dt(params["to"])   if params.get("to")   else now
 
-    total_chunks   = math.ceil((to_dt - from_dt).total_seconds() / 3600 / CURSOR_CHUNK_HOURS)
+    # 청크 목록 사전 계산 (최신 → 과거 순)
+    chunks    = []
+    cursor_to = to_dt
+    while cursor_to > from_dt:
+        chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
+        chunks.append((chunk_from, cursor_to))
+        cursor_to = chunk_from
+
+    total_tasks    = len(chunks) * len(targets)
     collected      = []
     seen_ids       = set()
     cluster_counts = {t["id"]: 0 for t in targets}
-    cluster_errors = {t["id"]: None for t in targets}
-    cursor_to      = to_dt
-    chunk_no       = 0
+    cluster_errors = {t["id"]: 0 for t in targets}   # 오류 청크 수
+    result_q       = queue.Queue()                    # 워커 → 제너레이터 전달용
 
-    while cursor_to > from_dt:
-        chunk_from = max(from_dt, cursor_to - timedelta(hours=CURSOR_CHUNK_HOURS))
-        chunk_no  += 1
+    logger.info("[fetch] chunks=%d  targets=%d  per_cluster=%d",
+                len(chunks), len(targets), CHUNKS_PER_CLUSTER)
+
+    def _run_cluster(target: dict) -> None:
+        """클러스터 1개의 전체 청크를 CHUNKS_PER_CLUSTER 개씩 병렬로 소진."""
+        cid = target["id"]
+        with ThreadPoolExecutor(max_workers=CHUNKS_PER_CLUSTER) as ex:
+            futures = {}
+            for cf, ct in chunks:
+                p = {"limit": CURSOR_CHUNK_LIMIT, "from": cf.isoformat(), "to": ct.isoformat()}
+                futures[ex.submit(fetch_queries, target, p)] = (cf, ct)
+            for future in as_completed(futures):
+                cf, ct = futures[future]
+                result_q.put((cid, cf, ct, future.result()))
+
+    # 클러스터별 스레드를 띄워 병렬 실행
+    cluster_threads = [threading.Thread(target=_run_cluster, args=(t,), daemon=True) for t in targets]
+    for th in cluster_threads:
+        th.start()
+
+    # 완료 감지용 스레드: 모든 클러스터 스레드가 끝나면 sentinel 투입
+    def _sentinel():
+        for th in cluster_threads:
+            th.join()
+        result_q.put(None)
+    threading.Thread(target=_sentinel, daemon=True).start()
+
+    completed = 0
+    while True:
+        item = result_q.get()
+        if item is None:
+            break
+
+        cluster_id, chunk_from, chunk_to, res = item
+        if res["error"]:
+            cluster_errors[cluster_id] += 1
+            logger.warning("chunk error  cluster=%s  %s ~ %s  error=%s",
+                           cluster_id, chunk_from.isoformat(), chunk_to.isoformat(), res["error"])
 
         prev_count = len(collected)
+        for q in res["queries"]:
+            qid = q.get("queryId")
+            if qid and qid in seen_ids:
+                continue
+            if qid:
+                seen_ids.add(qid)
+            if _matches_conditions(q, query_type, conditions):
+                collected.append(q)
+                cluster_counts[cluster_id] += 1
 
-        chunk_params = {
-            "limit": CURSOR_CHUNK_LIMIT,
-            "from":  chunk_from.isoformat(),
-            "to":    cursor_to.isoformat(),
-        }
-
-        for res in _fetch_parallel(targets, chunk_params):
-            if res["error"]:
-                cluster_errors[res["cluster"]] = res["error"]
-            for q in res["queries"]:
-                qid = q.get("queryId")
-                if qid and qid in seen_ids:
-                    continue
-                if qid:
-                    seen_ids.add(qid)
-                if _matches_conditions(q, query_type, conditions):
-                    collected.append(q)
-                    cluster_counts[res["cluster"]] += 1
-
+        completed += 1
         new_queries = collected[prev_count:]
-        logger.info("cursor chunk #%d/%d  %s ~ %s  collected=%d",
-                    chunk_no, total_chunks, chunk_from.isoformat(), cursor_to.isoformat(), len(collected))
+        logger.info("task %d/%d  cluster=%s  %s ~ %s  new=%d  collected=%d",
+                    completed, total_tasks, cluster_id,
+                    chunk_from.isoformat(), chunk_to.isoformat(),
+                    len(new_queries), len(collected))
 
         yield {
             "type":        "progress",
-            "chunk":       chunk_no,
-            "total":       total_chunks,
+            "chunk":       completed,
+            "total":       total_tasks,
             "collected":   len(collected),
             "chunk_from":  chunk_from.isoformat(),
-            "chunk_to":    cursor_to.isoformat(),
+            "chunk_to":    chunk_to.isoformat(),
             "new_queries": new_queries,
         }
-        cursor_to = chunk_from
 
     collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)
     cluster_results = [
-        {"cluster": cid, "count": cluster_counts[cid], "error": cluster_errors[cid]}
+        {"cluster": cid, "count": cluster_counts[cid],
+         "error": f"chunk errors: {cluster_errors[cid]}" if cluster_errors[cid] else None}
         for cid in cluster_counts
     ]
     yield {

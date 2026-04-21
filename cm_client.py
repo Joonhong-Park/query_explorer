@@ -19,6 +19,7 @@ requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 # 커서 페이지네이션 설정
 CURSOR_CHUNK_HOURS  = 3 / 60  # 한 번에 요청하는 시간 범위 (3분)
 CURSOR_CHUNK_LIMIT  = 1000    # CM에 보내는 limit
+CHUNKS_PER_CLUSTER  = 5       # 클러스터당 동시 조회 청크 수
 
 
 def build_filter(
@@ -182,7 +183,7 @@ def fetch_all_clusters_stream(
         }
         return
 
-    # ── 조건 있음: 클러스터 간 병렬 + 클러스터 내 순차 청크 조회 ──────────────
+    # ── 조건 있음: 클러스터 간 병렬 + 클러스터 내 청크 병렬 조회 ───────────────
     now     = datetime.now(timezone.utc)
     from_dt = _parse_dt(params["from"]) if params.get("from") else now - timedelta(hours=24)
     to_dt   = _parse_dt(params["to"])   if params.get("to")   else now
@@ -202,14 +203,20 @@ def fetch_all_clusters_stream(
     cluster_errors = {t["id"]: 0 for t in targets}   # 오류 청크 수
     result_q       = queue.Queue()                    # 워커 → 제너레이터 전달용
 
-    logger.info("[fetch] chunks=%d  targets=%d", len(chunks), len(targets))
+    logger.info("[fetch] chunks=%d  targets=%d  per_cluster=%d",
+                len(chunks), len(targets), CHUNKS_PER_CLUSTER)
 
     def _run_cluster(target: dict) -> None:
-        """클러스터 1개의 전체 청크를 순차적으로 조회."""
+        """클러스터 1개의 전체 청크를 CHUNKS_PER_CLUSTER 개씩 병렬로 소진."""
         cid = target["id"]
-        for cf, ct in chunks:
-            p = {"limit": CURSOR_CHUNK_LIMIT, "from": cf.isoformat(), "to": ct.isoformat()}
-            result_q.put((cid, cf, ct, fetch_queries(target, p)))
+        with ThreadPoolExecutor(max_workers=CHUNKS_PER_CLUSTER) as ex:
+            futures = {}
+            for cf, ct in chunks:
+                p = {"limit": CURSOR_CHUNK_LIMIT, "from": cf.isoformat(), "to": ct.isoformat()}
+                futures[ex.submit(fetch_queries, target, p)] = (cf, ct)
+            for future in as_completed(futures):
+                cf, ct = futures[future]
+                result_q.put((cid, cf, ct, future.result()))
 
     # 클러스터별 스레드를 띄워 병렬 실행
     cluster_threads = [threading.Thread(target=_run_cluster, args=(t,), daemon=True) for t in targets]

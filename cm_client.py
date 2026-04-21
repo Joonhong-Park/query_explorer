@@ -2,6 +2,7 @@ import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from threading import Semaphore
 from typing import Generator, Optional
 
 import requests
@@ -14,9 +15,10 @@ logger = logging.getLogger(__name__)
 requests.packages.urllib3.disable_warnings()  # self-signed cert 경고 억제
 
 # 커서 페이지네이션 설정
-CURSOR_CHUNK_HOURS = 3 / 60   # 한 번에 요청하는 시간 범위 (3분)
-CURSOR_CHUNK_LIMIT = 1000     # CM에 보내는 limit
-MAX_PARALLEL_TASKS = 20       # 동시 실행할 (청크 × 클러스터) 태스크 수 상한
+CURSOR_CHUNK_HOURS  = 3 / 60  # 한 번에 요청하는 시간 범위 (3분)
+CURSOR_CHUNK_LIMIT  = 1000    # CM에 보내는 limit
+MAX_PARALLEL_TASKS  = 20      # 동시 실행할 (청크 × 클러스터) 태스크 수 상한
+MAX_PER_CLUSTER     = 3       # 클러스터(CM 호스트)당 최대 동시 요청 수
 
 
 def build_filter(
@@ -193,16 +195,22 @@ def fetch_all_clusters_stream(
         chunks.append((chunk_from, cursor_to))
         cursor_to = chunk_from
 
-    total_tasks    = len(chunks) * len(targets)
-    collected      = []
-    seen_ids       = set()
-    cluster_counts = {t["id"]: 0 for t in targets}
-    cluster_errors = {t["id"]: None for t in targets}
-    completed      = 0
+    total_tasks     = len(chunks) * len(targets)
+    collected       = []
+    seen_ids        = set()
+    cluster_counts  = {t["id"]: 0 for t in targets}
+    cluster_errors  = {t["id"]: 0 for t in targets}  # 오류 발생 청크 수
+    completed       = 0
+    # 클러스터당 동시 요청 수 제한 — CM 서버 과부하 방지
+    sems = {t["id"]: Semaphore(MAX_PER_CLUSTER) for t in targets}
 
-    logger.info("[fetch] chunks=%d  targets=%d  total_tasks=%d  workers=%d",
+    def _fetch_with_sem(target: dict, p: dict) -> dict:
+        with sems[target["id"]]:
+            return fetch_queries(target, p)
+
+    logger.info("[fetch] chunks=%d  targets=%d  total_tasks=%d  workers=%d  per_cluster=%d",
                 len(chunks), len(targets), total_tasks,
-                min(total_tasks, MAX_PARALLEL_TASKS))
+                min(total_tasks, MAX_PARALLEL_TASKS), MAX_PER_CLUSTER)
 
     with ThreadPoolExecutor(max_workers=min(total_tasks, MAX_PARALLEL_TASKS)) as executor:
         futures = {}
@@ -213,7 +221,7 @@ def fetch_all_clusters_stream(
                 "to":    chunk_to.isoformat(),
             }
             for target in targets:
-                f = executor.submit(fetch_queries, target, chunk_params)
+                f = executor.submit(_fetch_with_sem, target, chunk_params)
                 futures[f] = (target["id"], chunk_from, chunk_to)
 
         for future in as_completed(futures):
@@ -221,7 +229,9 @@ def fetch_all_clusters_stream(
             res = future.result()
 
             if res["error"]:
-                cluster_errors[cluster_id] = res["error"]
+                cluster_errors[cluster_id] += 1
+                logger.warning("chunk error  cluster=%s  %s ~ %s  error=%s",
+                               cluster_id, chunk_from.isoformat(), chunk_to.isoformat(), res["error"])
 
             prev_count = len(collected)
             for q in res["queries"]:
@@ -236,9 +246,10 @@ def fetch_all_clusters_stream(
 
             completed += 1
             new_queries = collected[prev_count:]
-            logger.info("task %d/%d  cluster=%s  %s ~ %s  collected=%d",
+            logger.info("task %d/%d  cluster=%s  %s ~ %s  new=%d  collected=%d",
                         completed, total_tasks, cluster_id,
-                        chunk_from.isoformat(), chunk_to.isoformat(), len(collected))
+                        chunk_from.isoformat(), chunk_to.isoformat(),
+                        len(new_queries), len(collected))
 
             yield {
                 "type":        "progress",
@@ -252,7 +263,8 @@ def fetch_all_clusters_stream(
 
     collected.sort(key=lambda q: q.get("startTime", ""), reverse=True)
     cluster_results = [
-        {"cluster": cid, "count": cluster_counts[cid], "error": cluster_errors[cid]}
+        {"cluster": cid, "count": cluster_counts[cid],
+         "error": f"chunk errors: {cluster_errors[cid]}" if cluster_errors[cid] else None}
         for cid in cluster_counts
     ]
     yield {
